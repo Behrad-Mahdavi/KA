@@ -274,8 +274,7 @@ export default function Requests({ Open }) {
     return (
         <>
             {/* ... (img union) ... */}
-            <div className={`${!Open ? "w-[80%]" : "w-[94%]"} p-6 md:p-8 transition-all duration-500 flex flex-col h-screen relative z-10 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 overflow-y-auto`}>
-                {/* ... (هدر صفحه) ... */}
+            <div className={`${Open ? "w-[80%]" : "w-[94%]"} p-6 md:p-8 transition-all duration-500 flex flex-col h-screen relative z-10 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 overflow-y-auto`}>                {/* ... (هدر صفحه) ... */}
                 <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
 
                     {/* در داخل اولین div در هدر صفحه */}
@@ -328,7 +327,7 @@ export default function Requests({ Open }) {
                                         <div className='flex items-center gap-2 sm:gap-3 z-10'>
                                             <h2 className={`${card.textColor} font-semibold text-md sm:text-xl md:text-xl text-right`}>{card.title}</h2>
                                             <div className={`${card.iconBgColor} flex justify-center items-center w-18 h-18 rounded-full flex-shrink-0`}>
-                                                <DynamicIcon color="white" variant="Bold" size={32} name={`${card.Icon}`}  />
+                                                <DynamicIcon color="white" variant="Bold" size={32} name={`${card.Icon}`} />
                                             </div>
                                         </div>
                                     </div>

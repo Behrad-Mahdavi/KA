@@ -276,8 +276,7 @@ export default function ResultsPageContainer({ Open }) {
   return (
     <>
       <img src={union} className='absolute scale-75 top-[-4rem] left-[-10rem] z-0 opacity-30' alt="" />
-      <div className={`${!Open ? "w-[calc(100%-1rem)] md:w-[80%]" : "w-[calc(100%-1rem)] md:w-[94%]"} p-4 md:p-8 transition-all duration-500 flex flex-col h-screen relative z-10 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100`}>
-        {/* هدر */}
+      <div className={`${Open ? "w-[80%]" : "w-[94%]"} p-4 md:p-8 transition-all duration-500 flex flex-col h-screen relative z-10 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100`}>        {/* هدر */}
         <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-8">
           <div className="flex justify-center items-center gap-3 sm:gap-5 mb-3 sm:mb-0">
             <h3 className='text-[#19A297] text-xs sm:text-sm'>هنرستان استارتاپی رکاد</h3>

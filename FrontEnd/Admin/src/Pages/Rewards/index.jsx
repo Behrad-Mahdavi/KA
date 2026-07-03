@@ -60,7 +60,7 @@ export default function RewardsAdminPage({ Open }) {
     const toggleNotificationPanel = () => setIsNotificationOpen((prev) => !prev);
     const closeNotificationPanel = () => setIsNotificationOpen(false);
 
-    
+
     useEffect(() => {
         // این تابع آمار و اعلان‌ها را با هم می‌گیرد
         const loadInitialData = async () => {
@@ -94,7 +94,7 @@ export default function RewardsAdminPage({ Open }) {
         };
 
         loadInitialData();
-        
+
         // منطق بستن پنل با کلیک بیرون
         function handleClickOutside(event) {
             if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -335,49 +335,48 @@ export default function RewardsAdminPage({ Open }) {
     return (
         <>
             <img src={union} className='absolute scale-75 top-[-4rem] left-[-10rem] z-0 opacity-30' alt="" />
-            <div className={`${!Open ? "w-[calc(100%-1rem)] md:w-[80%]" : "w-[calc(100%-1rem)] md:w-[94%]"} p-4 md:p-8 transition-all duration-500 flex flex-col relative z-10`}>                {/* هدر */}
-                <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
-                  
-                        {/* در داخل اولین div در هدر صفحه */}
-                        <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
-                            <h3 className='text-[#19A297] text-xs sm:text-sm'>هنرستان استارتاپی رکاد</h3>
-                            <BiSolidSchool className='text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl' />
+            <div className={`${Open ? "w-[80%]" : "w-[94%]"} p-4 md:p-8 transition-all duration-500 flex flex-col relative z-10`}>                <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
 
-                            {/* --- کد جدید برای آیکون و پنل نوتیفیکیشن --- */}
-                            <div className="relative" ref={notificationRef}>
-                                <button
-                                    id="admin-requests-notification-icon"
-                                    onClick={toggleNotificationPanel}
-                                    className="w-8 h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer relative group"
-                                    aria-label="اعلان‌ها"
-                                >
-                                    <IoNotificationsOutline className="text-gray-400" />
-                                    {unreadCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
-                                            {unreadCount > 9 ? '۹+' : unreadCount.toLocaleString('fa-IR')}
-                                        </span>
-                                    )}
-                                </button>
-                                <NotificationPanel
-                                    isOpen={isNotificationOpen}
-                                    onClose={closeNotificationPanel}
-                                    token={token}
-                                    userType="admin" // <<<< این prop کامپوننت را برای ادمین تنظیم می‌کند
-                                />
-                            </div>
-                            {/* --- پایان کد جدید --- */}
-                        </div>
-                    <div className="flex items-center gap-3 sm:gap-5">
-                        <p className='text-gray-400 text-xs sm:text-sm'> امروز {week} {day} {month}، {year}</p>
-                        <h1 className='text-[#19A297] font-semibold text-base sm:text-lg'>مدیریت پاداش‌ها</h1>
+                {/* در داخل اولین div در هدر صفحه */}
+                <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
+                    <h3 className='text-[#19A297] text-xs sm:text-sm'>هنرستان استارتاپی رکاد</h3>
+                    <BiSolidSchool className='text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl' />
+
+                    {/* --- کد جدید برای آیکون و پنل نوتیفیکیشن --- */}
+                    <div className="relative" ref={notificationRef}>
+                        <button
+                            id="admin-requests-notification-icon"
+                            onClick={toggleNotificationPanel}
+                            className="w-8 h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer relative group"
+                            aria-label="اعلان‌ها"
+                        >
+                            <IoNotificationsOutline className="text-gray-400" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+                                    {unreadCount > 9 ? '۹+' : unreadCount.toLocaleString('fa-IR')}
+                                </span>
+                            )}
+                        </button>
+                        <NotificationPanel
+                            isOpen={isNotificationOpen}
+                            onClose={closeNotificationPanel}
+                            token={token}
+                            userType="admin" // <<<< این prop کامپوننت را برای ادمین تنظیم می‌کند
+                        />
                     </div>
+                    {/* --- پایان کد جدید --- */}
                 </div>
+                <div className="flex items-center gap-3 sm:gap-5">
+                    <p className='text-gray-400 text-xs sm:text-sm'> امروز {week} {day} {month}، {year}</p>
+                    <h1 className='text-[#19A297] font-semibold text-base sm:text-lg'>مدیریت پاداش‌ها</h1>
+                </div>
+            </div>
 
                 {/* کارت‌های آماری */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {statCardsDisplayData.map((card, index) => (
                         <div key={index} className="relative p-6 rounded-xl flex flex-col items-center justify-center text-center min-h-[150px] overflow-hidden">
-                            <img src={card.title==="کل توکن‌های درخواستی" ? Frame20 :Frame121} className="absolute z-0 h-full w-full object-cover scale-105 top-0 left-0 rounded-xl" alt="" />
+                            <img src={card.title === "کل توکن‌های درخواستی" ? Frame20 : Frame121} className="absolute z-0 h-full w-full object-cover scale-105 top-0 left-0 rounded-xl" alt="" />
                             <div className="absolute inset-0 rounded-xl"></div>
                             {card.decorated && (
                                 <>

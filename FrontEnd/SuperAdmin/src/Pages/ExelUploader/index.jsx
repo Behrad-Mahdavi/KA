@@ -13,7 +13,7 @@ function ExcelUpload({ Open }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState([]);
-  
+
   // منطق تاریخ
   const date = new Date();
   const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
@@ -24,17 +24,17 @@ function ExcelUpload({ Open }) {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
-  
+
     if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
       alert('لطفا فقط فایل‌های اکسل (xlsx یا xls) آپلود کنید');
       return;
     }
-  
+
     if (selectedFile.size > 5 * 1024 * 1024) {
       alert('حجم فایل باید کمتر از 5 مگابایت باشد');
       return;
     }
-  
+
     setFile(selectedFile);
     // پاک کردن نتایج و خطاهای قبلی هنگام انتخاب فایل جدید
     setResult(null);
@@ -47,7 +47,7 @@ function ExcelUpload({ Open }) {
       setErrors(['لطفا یک فایل انتخاب کنید']);
       return;
     }
-  
+
     const formData = new FormData();
     formData.append('excelFile', file, file.name);
 
@@ -65,7 +65,7 @@ function ExcelUpload({ Open }) {
           );
         }
       });
-      
+
       // پردازش پاسخ سرور
       if (response.data && response.data.success) {
         setResult(response.data);
@@ -74,7 +74,7 @@ function ExcelUpload({ Open }) {
       }
     } catch (error) {
       console.error('Error details:', error.response?.data || error.message);
-      
+
       // مدیریت خطاهای مختلف
       if (error.response?.status === 401) {
         setErrors(['احراز هویت ناموفق بود. لطفا دوباره وارد شوید']);
@@ -116,15 +116,29 @@ function ExcelUpload({ Open }) {
         </div>
 
         {/* بخش کارت‌های بالا */}
-        <div className="flex gap-5 mb-6 h-[12vh]">
+        <div className="flex gap-5 mb-6 h-[35vh]">
           {/* کارت توضیحات */}
           <div className="relative flex-1 bg-white rounded-lg overflow-hidden p-8 flex items-center justify-between shadow-sm border border-gray-100">
             <img src={frame7} className='absolute z-0 h-full w-full object-cover scale-110 top-0 left-0 opacity-100' alt="" />
             <div className='flex items-center gap-4 z-10 w-full justify-between'>
-              <h2 className='text-[#202A5A] font-semibold text-lg'>فایل اکسل باید شامل ستون‌های مشخص شده باشد</h2>
-              <div className="bg-[#202A5A] flex justify-center items-center w-12 h-12 rounded-full">
+              <div className="bg-[#202A5A] flex justify-center items-center w-12 h-12 rounded-full shrink-0">
                 <IoDocumentTextOutline className='scale-150 text-white' />
               </div>
+              <div className="flex flex-col gap-1 rtl">
+                <h2 className='text-[#202A5A] font-semibold text-lg mb-1'>📂 راهنمای ساختار فایل اکسل (xlsx یا xls)</h2>
+                <div className="text-gray-700 text-sm space-y-1">
+                  <p>✅ <strong>ستون‌های اجباری (نام ستون‌ها به انگلیسی):</strong> <code className="bg-gray-100 px-1 rounded">idCode</code> , <code className="bg-gray-100 px-1 rounded">fullName</code> , <code className="bg-gray-100 px-1 rounded">role</code></p>
+                  <p>📌 <strong>ستون‌های اختیاری:</strong> <code className="bg-gray-100 px-1 rounded">fieldOfStudy</code> , <code className="bg-gray-100 px-1 rounded">grade</code> , <code className="bg-gray-100 px-1 rounded">class</code> , <code className="bg-gray-100 px-1 rounded">score</code> (پیش‌فرض ۰)</p>
+                  <p>🔐 <strong>رمز عبور خودکار:</strong> دانش‌آموز (<code>student</code>) → <kbd className="bg-gray-200 px-1 rounded">s+کدملی</kbd> &nbsp;|&nbsp; مدیر (<code>admin</code>) → <kbd className="bg-gray-200 px-1 rounded">a+کدملی</kbd></p>
+                  <p>⚠️ <strong>محدودیت‌ها:</strong> حداکثر حجم ۵ مگابایت، کد ملی نباید تکراری باشد، حتماً از فرمت <code>.xlsx</code> یا <code>.xls</code> استفاده کنید.</p>
+                  <p className="text-xs text-gray-500 mt-2">📥 مثال از یک سطر معتبر:</p>
+                  <pre className="text-xs bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto">
+                    {`idCode       | fullName     | role    | fieldOfStudy | grade | class | score
+1234567890   | رضا احمدی    | student | ریاضی        | دهم   | 1     | 100`}
+                  </pre>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -132,25 +146,25 @@ function ExcelUpload({ Open }) {
         {/* بخش فرم آپلود */}
         <div className="relative bg-white rounded-lg overflow-hidden mb-6 p-6 flex flex-col shadow-sm border border-gray-100 min-h-[30vh]">
           <img src={frame72} className='absolute z-0 h-full w-full object-cover top-0 left-[-30px] opacity-100 scale-110' alt="" />
-          
+
           <div className="z-10">
             <h2 className='text-[#202A5A] font-semibold text-lg mb-4'>آپلود فایل اکسل</h2>
-            
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="flex flex-col gap-2">
                 <label className="block text-gray-600 text-sm">فایل اکسل</label>
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
                   onChange={handleFileChange}
                   className="border border-gray-300 p-2 rounded-lg text-sm w-full max-w-md"
                   disabled={loading}
                 />
                 <p className="text-gray-500 text-xs">فرمت‌های مجاز: xlsx, xls (حداکثر حجم: 5MB)</p>
               </div>
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 disabled={loading || !file}
                 className="bg-[#19A297] text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-[#168a7f] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -178,15 +192,15 @@ function ExcelUpload({ Open }) {
             <h3 className={`font-bold mb-3 ${result.success ? 'text-green-600' : 'text-red-600'}`}>
               {result.message}
             </h3>
-            
+
             {result.insertedCount !== undefined && (
               <p className="text-[#202A5A] text-sm mb-2">تعداد کاربران ثبت‌شده: {result.insertedCount}</p>
             )}
-            
+
             {result.duplicateCount > 0 && (
               <p className="text-amber-600 text-sm mb-2">تعداد کاربران تکراری: {result.duplicateCount}</p>
             )}
-            
+
             {result.errorCount > 0 && (
               <div className="mt-3">
                 <h4 className="font-bold text-sm text-[#202A5A] mb-2">خطاهای جزئیات:</h4>
