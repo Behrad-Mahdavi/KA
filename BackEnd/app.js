@@ -29,21 +29,17 @@ export const __dirname = path.dirname(__filename);
 const app = express();
 
 
-// ✅ FIX 1: تنظیمات کامل CORS رو اینجا تعریف می‌کنیم
 const corsOptions = {
-  // آدرس دقیق فرانت‌اند شما. اگر روی پورت دیگه‌ای اجرا می‌شه، تغییرش بده.
-  // پورت پیش‌فرض Vite معمولاً 5173 است.
-  origin:"*",
-  methods: "GET,POST,PUT,DELETE,PATCH,HEAD",
-  // هدرهایی که فرانت اجازه داره ارسال کنه رو مشخص می‌کنیم
-  allowedHeaders: "Content-Type,Authorization",
+  origin: true, // بازتاب داینامیک دامنه‌های ورسل و لوکال برای پشتیبانی از credentials
+  methods: "GET,POST,PUT,DELETE,PATCH,HEAD,OPTIONS",
+  allowedHeaders: "Content-Type,Authorization,X-Requested-With,Accept",
   credentials: true,
 };
 
-// ✅ FIX 2: از تنظیمات بالا در میدل‌ور cors استفاده می‌کنیم
+// میدل‌ور cors برای تمامی مسیرها
 app.use(cors(corsOptions));
 
-// ✅ FIX 3: این خط مهم برای پاسخ به درخواست‌های preflight (OPTIONS) هست
+// پاسخ به درخواست‌های preflight (OPTIONS)
 app.options('*', cors(corsOptions));
 
 
