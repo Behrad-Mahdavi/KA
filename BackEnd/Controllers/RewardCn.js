@@ -1,53 +1,63 @@
-import Reward from "../Models/RewardMd.js";
 import catchAsync from "../Utils/catchAsync.js";
-import ApiFeatures from "../Utils/apiFeatures.js";
+import prisma from "../Utils/prisma.js";
+import HandleERROR from "../Utils/handleError.js";
 
-export const createReward=catchAsync(async(req,res,next)=>{
-    const reward=await Reward.create(req.body)
+export const createReward = catchAsync(async (req, res, next) => {
+    const reward = await prisma.reward.create({
+        data: {
+            parent: req.body.parent,
+            name: req.body.name,
+            description: req.body.description,
+            minToken: parseInt(req.body.minToken, 10),
+            maxToken: parseInt(req.body.maxToken, 10),
+            icon: req.body.icon,
+            color: req.body.color,
+            hide: req.body.hide || "false"
+        }
+    });
     return res.status(201).json({
-        success:true,
+        success: true,
         message: "reward created successfully",
-        data:reward
-    })
-})
+        data: reward
+    });
+});
+
 export const getAllRewards = catchAsync(async (req, res, next) => {
-    // <<<< اصلاح: پاس دادن Reward.find() به جای Reward
-    const features = new ApiFeatures(Reward.find(), req.query) // یا Reward.find({})
-        .filter()       // ۱. فیلترها اول اعمال شوند
-        .sort()         // ۲. سپس مرتب‌سازی
-        .limitFields()  // ۳. سپس انتخاب فیلدها
-        .populate()     // ۴. سپس populate (اگر قبل از paginate باشد بهتر است)
-        // .paginate()  // ۵. و در نهایت صفحه‌بندی (اگر getAllRewards نیاز به صفحه‌بندی دارد)
-                        // اگر صفحه‌بندی لازم نیست، این خط را حذف کنید یا در ApiFeatures مدیریت کنید
+    const { parent } = req.query;
+    const where = {};
+    if (parent) where.parent = parent;
 
-    const rewards = await features.query; // features.query اینجا باید نتیجه نهایی باشد
-
-    // اگر از paginate استفاده می‌کنید، معمولاً totalCount هم لازم است
-    // let totalCount;
-    // if (req.query.page || req.query.limit) { // فقط اگر صفحه‌بندی فعال است
-    //     const countFeatures = new ApiFeatures(Reward.find(), req.query).filter();
-    //     totalCount = await Reward.countDocuments(countFeatures.getQueryFilters());
-    // }
+    const rewards = await prisma.reward.findMany({
+        where,
+        orderBy: { createdAt: 'desc' }
+    });
     return res.status(200).json({
         success: true,
-        // results: rewards.length, // اگر صفحه‌بندی دارید
-        // totalCount,              // اگر صفحه‌بندی دارید
         data: rewards
     });
 });
-export const getOneReward=catchAsync(async(req,res,next)=>{
-    const {id}=req.params
-    const reward=await Reward.findById(id)
+
+export const getOneReward = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const reward = await prisma.reward.findUnique({
+        where: { id }
+    });
+    if (!reward) {
+        return next(new HandleERROR("پاداش یافت نشد", 404));
+    }
     return res.status(200).json({
-        data:reward,
-        success:true
-    })
-})
-export const removeReward=catchAsync(async(req,res,next)=>{
-    const {id}=req.params
-    await Reward.findByIdAndDelete(id)
+        data: reward,
+        success: true
+    });
+});
+
+export const removeReward = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    await prisma.reward.delete({
+        where: { id }
+    });
     return res.status(200).json({
-        success:true,
-        message:"reward removed successfully"
-    })
-})
+        success: true,
+        message: "reward removed successfully"
+    });
+});

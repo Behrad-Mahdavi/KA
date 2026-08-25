@@ -28,23 +28,22 @@ export default function Login() {
                 body:JSON.stringify(fields)
             })
 
-            if(res?.data?.user?.role=="student"){
-                toast("You Are Not Admin")
-
+            if(res?.data?.user?.role !== "superAdmin"){
+                toast.error("شما دسترسی به پنل سوپرادمین ندارید")
+                return
             }
-            else{
-                toast(res.message)
-
-            }
-            if(res.success && res.data.user.role!="admin"){
-                handleAuth(res.data.token,res.data.user)
-                localStorage.setItem("token",res.data.token)
-                localStorage.setItem("user",JSON.stringify(res.data.user))
+            if(res.success && res?.data?.token){
+                toast.success(res.message || "ورود با موفقیت انجام شد")
+                handleAuth(res.data.token, res.data.user)
+                localStorage.setItem("token", res.data.token)
+                localStorage.setItem("user", JSON.stringify(res.data.user))
                 navigate('/')
-
+            } else {
+                toast.error(res.message || "اطلاعات ورود نادرست است")
             }
         } catch (error) {
             console.log(error)
+            toast.error("خطا در برقراری ارتباط با سرور")
         }
 
     }

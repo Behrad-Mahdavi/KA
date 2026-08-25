@@ -120,7 +120,7 @@ export default function AddActivityModal({
         setFormData(prevFormData => {
             const newState = { ...prevFormData, [name]: value };
             if (name === "activityTitle") {
-                const foundActivity = availableActivityTitles.find(act => act._id === value);
+                const foundActivity = availableActivityTitles.find(act => (act.id === value || act._id === value));
                 setSelectedActivityFullDetails(foundActivity || null);
                 newState.details = '';
             }
@@ -223,7 +223,7 @@ export default function AddActivityModal({
                         <label htmlFor="activityTitle" className="block text-xs font-medium text-gray-500 mb-1 text-right">عنوان فعالیت <span className="text-red-500">*</span></label>
                         <select id="activityTitle" name="activityTitle" value={formData.activityTitle} onChange={handleChange} required disabled={!formData.activityCategory || loadingActivityTitles || availableActivityTitles.length === 0} className="w-full p-3 pr-10 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#19A297] focus:border-[#19A297] text-[#202A5A] text-sm text-right appearance-none cursor-pointer">
                             <option value="" disabled>{loadingActivityTitles ? "بارگذاری..." : !formData.activityCategory ? "ابتدا دسته‌بندی" : availableActivityTitles.length === 0 ? "عنوانی یافت نشد" : "انتخاب عنوان..."}</option>
-                            {availableActivityTitles.map(act => <option key={act._id} value={act._id}>{act.name}</option>)}
+                            {availableActivityTitles.map(act => <option key={act.id || act._id} value={act.id || act._id}>{act.name}</option>)}
                         </select>
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none top-[25px]"><IoChevronDown className="text-gray-400" /></div>
                     </div>

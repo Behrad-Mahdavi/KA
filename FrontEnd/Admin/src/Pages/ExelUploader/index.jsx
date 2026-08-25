@@ -31,8 +31,8 @@ function ExcelUpload() {
     formData.append('excelFile', file, file.name); // اضافه کردن نام فایل
   
     try {
-      setLoading(true);
-      const response = await axios.post('http://localhost:5000/api/users/register/excel', formData, {
+      const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5005/api/';
+      const response = await axios.post(`${baseUrl}users/register/excel`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

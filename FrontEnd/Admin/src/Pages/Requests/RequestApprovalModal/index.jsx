@@ -52,7 +52,7 @@ export default function RequestApprovalModal({
         }
         
         // ارسال `details` انتخابی ادمین به تابع والد
-        onApprove(requestData._id, scoreToAward, adminComment, selectedDetails);
+        onApprove(requestData.id || requestData._id, scoreToAward, adminComment, selectedDetails);
     };
 
     // تابع برای رد کردن درخواست
@@ -62,7 +62,7 @@ export default function RequestApprovalModal({
             setError('برای رد کردن درخواست، نوشتن کامنت الزامی است.');
             return;
         }
-        onReject(requestData._id, adminComment);
+        onReject(requestData.id || requestData._id, adminComment);
     };
 
     // تابع برای مدیریت تغییر امتیاز و آپدیت کردن همزمان `details`
@@ -87,7 +87,14 @@ export default function RequestApprovalModal({
     if (!isOpen || !requestData) return null;
     
     const scoreDef = requestData.activityDefinition?.scoreDefinition;
-    
+
+    const formatDateSafe = (dateInput) => {
+        if (!dateInput) return "نامشخص";
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return "نامشخص";
+        return new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short' }).format(d);
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose} dir="rtl">
             <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8 w-full max-w-lg mx-auto" onClick={handleModalContentClick}>
@@ -106,7 +113,7 @@ export default function RequestApprovalModal({
                         </div>
                         <div>
                             <label className="block text-xs text-gray-500">تاریخ ثبت:</label>
-                            <div className="bg-gray-100 p-2 rounded mt-1 text-sm">{new Intl.DateTimeFormat('fa-IR', {dateStyle: 'short'}).format(new Date(requestData.submissionDate))}</div>
+                            <div className="bg-gray-100 p-2 rounded mt-1 text-sm">{formatDateSafe(requestData.submissionDate || requestData.createdAt)}</div>
                         </div>
                     </div>
 

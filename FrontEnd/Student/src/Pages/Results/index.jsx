@@ -8,9 +8,6 @@ import { useRef } from "react";
 import NotificationPanel from "../../Components/NotificationPanel";
 import StudentProfileModal from "./StudentProfileModal/StudentProfileModal";
 
-// headerConfig مثل قبل (ترتیب ستون‌ها را چک کنید)
-const userString = localStorage.getItem("user");
-const user = userString ? JSON.parse(userString) : null;
 
 const headerConfig = [
   {
@@ -202,12 +199,12 @@ export default function StudentResultsPage({ Open }) {
           const userString = localStorage.getItem("user");
           const currentUser = userString ? JSON.parse(userString) : null;
 
-          // تصحیح شرط مقایسه - استفاده از == به جای =
-          const foundUser = response.data.find(
-            (item) => item.id === currentUser.id // تصحیح این خط
-          );
-
-          if (foundUser) setCurrentUserInfo(foundUser);
+          if (currentUser) {
+            const foundUser = response.data.find(
+              (item) => item.id === currentUser.id || item.userId === currentUser.id
+            );
+            if (foundUser) setCurrentUserInfo(foundUser);
+          }
         } else {
           setError(response.message || "خطا در دریافت نتایج هم‌پایه‌ای‌ها.");
           setResultsTableData([]);
@@ -348,12 +345,13 @@ export default function StudentResultsPage({ Open }) {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {resultsTableData.length > 0
-                  ? resultsTableData.map((row, idx) => (
+                  ? resultsTableData.map((row, idx) => {
+                    const currentLoggedUser = currentUserInfo || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null);
+                    const isMe = currentLoggedUser && (row.id === currentLoggedUser.id || row.userId === currentLoggedUser.id);
+                    return (
                     <tr
                       key={row.id || idx}
-
-                      className={`${row.id == user.id ? "bg-[#D4F3F1] " : ""}${idx % 2 === 0 && !row.id == user.id ? "bg-white" : !row.id == user.id ? "bg-gray-50/60 " : ""
-                        } hover:bg-indigo-50/50 transition-colors text-xs`}
+                      className={`${isMe ? "bg-[#D4F3F1] " : idx % 2 === 0 ? "bg-white " : "bg-gray-50/60 "} hover:bg-indigo-50/50 transition-colors text-xs`}
                     >
                       {" "}
                       {/* کاهش سایز فونت */}
@@ -370,7 +368,8 @@ export default function StudentResultsPage({ Open }) {
                         </td>
                       ))}
                     </tr>
-                  ))
+                    );
+                  })
                   : !loading && (
                     <tr>
                       <td

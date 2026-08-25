@@ -1,14 +1,22 @@
 import app from "./app.js";
-import dotenv from 'dotenv'
+import dotenv from 'dotenv';
 import { __dirname } from "./app.js";
-import mongoose from "mongoose";
-dotenv.configDotenv({path:__dirname+'/config.env'})
+import prisma from "./Utils/prisma.js";
 
-mongoose.connect(process.env.DATA_BASE).then(()=>{
-    console.log('database is connect')
-}).catch(err=>console.log(err))
+dotenv.configDotenv({ path: __dirname + '/config.env' });
+dotenv.config();
 
+const port = process.env.PORT || 5005;
 
-app.listen(process.env.PORT,()=>{
-    console.log('server is running')  
-})
+// تست اتصال به پایگاه داده PostgreSQL
+prisma.$connect()
+  .then(() => {
+    console.log('✅ PostgreSQL database connected successfully via Prisma');
+    app.listen(port, () => {
+      console.log(`🚀 KA-Platform server is running on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Failed to connect to PostgreSQL database:', err);
+    process.exit(1);
+  });

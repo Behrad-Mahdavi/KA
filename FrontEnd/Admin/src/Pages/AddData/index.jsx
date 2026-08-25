@@ -80,12 +80,12 @@ export default function AddData({ Open }) {
         ]);
 
         const newStats = {};
-        if (userStats.success) newStats.totalUserScore = userStats.data.totalScore;
-        if (activityCount.success) newStats.totalAdminActivitiesCount = activityCount.data.count;
+        if (userStats?.success) newStats.totalUserScore = userStats.data?.totalScore ?? userStats.totalScore ?? 0;
+        if (activityCount?.success) newStats.totalAdminActivitiesCount = activityCount.data?.count ?? activityCount.count ?? 0;
         setStats(newStats);
 
         // <<< تغییر: ذخیره کردن تعداد اعلان‌ها در state >>>
-        if (notificationCountResponse.success) {
+        if (notificationCountResponse?.success) {
           setUnreadCount(notificationCountResponse.totalCount || 0);
         }
 
@@ -186,8 +186,8 @@ export default function AddData({ Open }) {
         ]);
 
         const newStats = {};
-        if (userStats.success) newStats.totalUserScore = userStats.data.totalScore;
-        if (activityCount.success) newStats.totalAdminActivitiesCount = activityCount.data.count;
+        if (userStats?.success) newStats.totalUserScore = userStats.data?.totalScore ?? userStats.totalScore ?? 0;
+        if (activityCount?.success) newStats.totalAdminActivitiesCount = activityCount.data?.count ?? activityCount.count ?? 0;
         setStats(newStats);
 
       } catch (err) {

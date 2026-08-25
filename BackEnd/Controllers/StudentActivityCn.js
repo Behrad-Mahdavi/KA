@@ -1,247 +1,201 @@
-import StudentActivity from "../Models/StudentActivityMd.js";
 import catchAsync from "../Utils/catchAsync.js";
-import ApiFeatures from "../Utils/apiFeatures.js";
-import User from "../Models/UserMd.js";
-import {  updateUserScore } from "../Utils/UpdateScore.js";
-
-
-// studentActivityController.js (یا هر فایلی که کنترلرهای StudentActivity در آن است)
-
-import AdminActivity from '../Models/AdminActivityMd.js';
-import mongoose from 'mongoose';
-
-// studentActivityController.js (یا AdminActivityController.js یا یک کنترلر مشترک)
-
-// ... (import های قبلی) ...
-import Activity from '../Models/ActivityMd.js'; // اطمینان از import
-import Notification from "../Models/NotificationMd.js";
-
-// controllers/studentActivityController.js (یا هر فایلی که این کنترلر در آن است)
-
-
+import prisma from "../Utils/prisma.js";
+import { updateUserScore } from "../Utils/UpdateScore.js";
+import HandleERROR from "../Utils/handleError.js";
 
 export const getMyActivitiesList = catchAsync(async (req, res, next) => {
     const userId = req.userId;
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    // ۲. پارامتر جدید entryType را از query می‌خوانیم
     const { status, activityTitle, sortBy = 'submissionDate', order = 'desc', page = 1, limit = 10, entryType } = req.query;
 
-    const baseActivityPipeline = (collectionName) => [
-        { $match: { userId: userObjectId } },
-        {
-            $lookup: {
-                from: 'activities', // نام کالکشن Activity
-                localField: 'activityId',
-                foreignField: '_id',
-                as: 'activityInfo'
-            }
-        },
-        { $unwind: { path: '$activityInfo', preserveNullAndEmptyArrays: true } },
-        {
-            $project: {
-                _id: 1,
-                activityName: '$activityInfo.name',
-                details: '$details', // نام فیلد در مدل شما (ممکن است متفاوت باشد)
-                submissionDate: '$createdAt',
-                reviewDate: '$updatedAt',
-                status: collectionName === 'studentactivities' ? '$status' : 'ثبت توسط ادمین',
-                scoreAwarded: 1,
-                adminComment: collectionName === 'studentactivities' ? '$adminComment' : undefined,
-                description: collectionName === 'studentactivities' ? '$description' : undefined, // توضیحات دانش آموز
-                type: collectionName === 'studentactivities' ? 'ثبت توسط دانش‌آموز' : 'ثبت توسط ادمین',
-                sortDate: '$createdAt'
-            }
-        },
-    ];
-    
     let studentActivities = [];
     let adminActivities = [];
 
-    // ۳. بر اساس entryType تصمیم می‌گیریم کدام داده‌ها را واکشی کنیم
     if (!entryType || entryType === 'student') {
-        const studentActivityMatch = { userId: userObjectId };
+        const where = { userId };
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-            studentActivityMatch.status = status;
+            where.status = status;
         }
-        const studentActivitiesPipeline = [
-            { $match: studentActivityMatch },
-            ...baseActivityPipeline('studentactivities').slice(1)
-        ];
-        studentActivities = await StudentActivity.aggregate(studentActivitiesPipeline);
+        if (activityTitle) {
+            where.activity = { name: { contains: activityTitle, mode: 'insensitive' } };
+        }
+
+        const rawStudentActs = await prisma.studentActivity.findMany({
+            where,
+            include: { activity: true },
+            orderBy: { createdAt: order === 'asc' ? 'asc' : 'desc' }
+        });
+
+        studentActivities = rawStudentActs.map(sa => ({
+            _id: sa.id,
+            id: sa.id,
+            activityName: sa.activity?.name || 'نامشخص',
+            details: sa.details,
+            submissionDate: sa.createdAt,
+            reviewDate: sa.updatedAt,
+            status: sa.status,
+            scoreAwarded: sa.scoreAwarded,
+            adminComment: sa.adminComment,
+            type: 'ثبت توسط دانش‌آموز',
+            sortDate: sa.createdAt
+        }));
     }
-    
-    // اگر نوع ثبت "ادمین" بود یا هیچ فیلتری نبود، فعالیت‌های ادمین را هم بیاور
+
     if (!entryType || entryType === 'admin') {
-        const adminActivitiesPipeline = baseActivityPipeline('adminactivities');
-        adminActivities = await AdminActivity.aggregate(adminActivitiesPipeline);
-    }
-
-    // اگر فیلتر عنوان وجود داشت، روی نتایج اعمال می‌کنیم
-    if (activityTitle) {
-        const regex = new RegExp(activityTitle, 'i');
-        studentActivities = studentActivities.filter(act => act.activityName && regex.test(act.activityName));
-        adminActivities = adminActivities.filter(act => act.activityName && regex.test(act.activityName));
-    }
-    
-    let combinedActivities = [...studentActivities, ...adminActivities];
-
-    // مرتب‌سازی نتایج ترکیبی
-    combinedActivities.sort((a, b) => {
-        const sortKey = sortBy === 'activityName' ? 'activityName' : 'sortDate'; // مرتب سازی بر اساس نام یا تاریخ
-        const fieldA = a[sortKey];
-        const fieldB = b[sortKey];
-        
-        if (order === 'asc') {
-            return fieldA > fieldB ? 1 : (fieldA < fieldB ? -1 : 0);
-        } else { // desc
-            return fieldA < fieldB ? 1 : (fieldA > fieldB ? -1 : 0);
+        const where = { userId };
+        if (activityTitle) {
+            where.activity = { name: { contains: activityTitle, mode: 'insensitive' } };
         }
+
+        const rawAdminActs = await prisma.adminActivity.findMany({
+            where,
+            include: { activity: true },
+            orderBy: { createdAt: order === 'asc' ? 'asc' : 'desc' }
+        });
+
+        adminActivities = rawAdminActs.map(aa => ({
+            _id: aa.id,
+            id: aa.id,
+            activityName: aa.activity?.name || 'نامشخص',
+            details: aa.details,
+            submissionDate: aa.createdAt,
+            reviewDate: aa.updatedAt,
+            status: 'ثبت توسط ادمین',
+            scoreAwarded: aa.scoreAwarded,
+            type: 'ثبت توسط ادمین',
+            sortDate: aa.createdAt
+        }));
+    }
+
+    let combined = [...studentActivities, ...adminActivities];
+    combined.sort((a, b) => {
+        const fieldA = sortBy === 'activityName' ? a.activityName : a.sortDate;
+        const fieldB = sortBy === 'activityName' ? b.activityName : b.sortDate;
+        if (order === 'asc') return fieldA > fieldB ? 1 : -1;
+        return fieldA < fieldB ? 1 : -1;
     });
 
-    // صفحه‌بندی
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
     const startIndex = (pageNum - 1) * limitNum;
-    const paginatedActivities = combinedActivities.slice(startIndex, startIndex + limitNum);
-    const totalCount = combinedActivities.length;
+    const paginated = combined.slice(startIndex, startIndex + limitNum);
+    const totalCount = combined.length;
 
     res.status(200).json({
         success: true,
-        results: paginatedActivities.length,
+        results: paginated.length,
         totalCount: totalCount,
         currentPage: pageNum,
         totalPages: Math.ceil(totalCount / limitNum),
-        data: paginatedActivities
+        data: paginated
     });
 });
 
 export const getMyActivityStats = catchAsync(async (req, res, next) => {
-    const userId = req.userId; // از میدل‌ور احراز هویت
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userId = req.userId;
 
-    // آمار از StudentActivity
-    const studentActivityStatsPipeline = StudentActivity.aggregate([
-        { $match: { userId: userObjectId } },
-        {
-            $group: {
-                _id: '$status', // گروه بندی بر اساس وضعیت
-                count: { $sum: 1 }
-            }
-        },
-        { // تبدیل به فرمتی که راحت تر بتوان به تفکیک وضعیت دسترسی داشت
-            $group: {
-                _id: null, // یک داکیومنت خروجی
-                statuses: { $push: { status: '$_id', count: '$count' } }
-            }
-        },
-        {
-            $project: {
-                _id: 0,
-                pendingCount: {
-                    $ifNull: [ // اگر وضعیتی وجود نداشت، صفر برگردان
-                        { $arrayElemAt: [{ $filter: { input: '$statuses', as: 's', cond: { $eq: ['$$s.status', 'pending'] } } }, 0] },
-                        { count: 0 } // آبجکت پیش فرض اگر فیلتر نتیجه نداشت
-                    ]
-                },
-                approvedCount: {
-                    $ifNull: [
-                        { $arrayElemAt: [{ $filter: { input: '$statuses', as: 's', cond: { $eq: ['$$s.status', 'approved'] } } }, 0] },
-                        { count: 0 }
-                    ]
-                },
-                rejectedCount: { // اگر به تعداد رد شده ها هم نیاز دارید
-                    $ifNull: [
-                        { $arrayElemAt: [{ $filter: { input: '$statuses', as: 's', cond: { $eq: ['$$s.status', 'rejected'] } } }, 0] },
-                        { count: 0 }
-                    ]
-                }
-            }
-        },
-        { // فقط مقدار count را برگردان
-            $project: {
-                pendingCount: '$pendingCount.count',
-                approvedCount: '$approvedCount.count',
-                rejectedCount: '$rejectedCount.count',
-            }
-        }
+    const [pendingCount, approvedCount, rejectedCount, adminTotal] = await Promise.all([
+        prisma.studentActivity.count({ where: { userId, status: 'pending' } }),
+        prisma.studentActivity.count({ where: { userId, status: 'approved' } }),
+        prisma.studentActivity.count({ where: { userId, status: 'rejected' } }),
+        prisma.adminActivity.count({ where: { userId } })
     ]);
 
-    // تعداد کل فعالیت های ثبت شده توسط ادمین برای این کاربر
-    const adminAssignedActivitiesCountPipeline = AdminActivity.countDocuments({ userId: userObjectId });
-
-    const [studentStatsResult, adminTotal] = await Promise.all([
-        studentActivityStatsPipeline,
-        adminAssignedActivitiesCountPipeline
-    ]);
-
-    const studentStats = (studentStatsResult.length > 0 && studentStatsResult[0])
-        ? studentStatsResult[0]
-        : { pendingCount: 0, approvedCount: 0, rejectedCount: 0 };
-
-    const totalStudentActivities = studentStats.pendingCount + studentStats.approvedCount + studentStats.rejectedCount;
+    const totalStudentSubmitted = pendingCount + approvedCount + rejectedCount;
 
     res.status(200).json({
         success: true,
         data: {
-            pendingStudentActivities: studentStats.pendingCount,
-            approvedStudentActivities: studentStats.approvedCount,
-            // rejectedStudentActivities: studentStats.rejectedCount, // در صورت نیاز
-            totalStudentSubmitted: totalStudentActivities, // کل فعالیت های ثبت شده توسط دانش آموز
-            totalAdminAssigned: adminTotal, // کل فعالیت های ثبت شده توسط ادمین برای این دانش آموز
-            totalAllActivities: totalStudentActivities + adminTotal, // مجموع همه
+            pendingStudentActivities: pendingCount,
+            approvedStudentActivities: approvedCount,
+            totalStudentSubmitted,
+            totalAdminAssigned: adminTotal,
+            totalAllActivities: totalStudentSubmitted + adminTotal
         }
     });
 });
 
 export const changeStatusAc = catchAsync(async (req, res, next) => {
-    const { id } = req.params
-    const { status,adminComment="Your Request Seen" } = req.body
-    const studentActivity = await StudentActivity.findByIdAndUpdate(id, { status,adminComment }, {
-        new: true,
-        runValidators: true
-    })
-    const user=await User.findById(studentActivity.userId)
-    updateUserScore(user)
+    const { id } = req.params;
+    const { status, adminComment = "Your Request Seen" } = req.body;
+
+    const studentActivity = await prisma.studentActivity.update({
+        where: { id },
+        data: {
+            status,
+            adminComment
+        }
+    });
+
+    await updateUserScore(studentActivity.userId);
+
     return res.status(200).json({
         data: studentActivity,
         success: true,
-        message:"change status Successfully"
-    })
-})
-export const createStudentActivity = catchAsync(async (req, res, next) => {
-    // ایجاد فعالیت
-    const newStudentActivity = await StudentActivity.create({ ...req.body, userId: req.userId });
+        message: "change status Successfully"
+    });
+});
 
-    // --- شروع کد جدید برای ارسال اعلان به ادمین‌ها ---
+export const createStudentActivity = catchAsync(async (req, res, next) => {
+    const { activityId, details, scoreAwarded = 0 } = req.body;
+
+    if (!activityId) {
+        return next(new HandleERROR("شناسه فعالیت الزامی است.", 400));
+    }
+
+    const activityExists = await prisma.activity.findUnique({
+        where: { id: activityId }
+    });
+    
+    if (!activityExists) {
+        return next(new HandleERROR("فعالیت مورد نظر یافت نشد.", 404));
+    }
+
+    const newStudentActivity = await prisma.studentActivity.create({
+        data: {
+            userId: req.userId,
+            activityId,
+            details: details !== undefined ? String(details) : '',
+            scoreAwarded: parseFloat(scoreAwarded) || 0,
+            status: 'pending'
+        }
+    });
+
     try {
-        const admins = await User.find({ role: { $in: ['admin', 'superAdmin'] } }).select('_id');
-        
-        // گرفتن اطلاعات برای پیام اعلان
-        const student = await User.findById(req.userId).select('fullName');
-        const activityDef = await Activity.findById(newStudentActivity.activityId).select('name');
-        
+        const admins = await prisma.user.findMany({
+            where: { role: { in: ['admin', 'superAdmin'] } },
+            select: { id: true }
+        });
+
+        const student = await prisma.user.findUnique({
+            where: { id: req.userId },
+            select: { fullName: true }
+        });
+
+        const activityDef = await prisma.activity.findUnique({
+            where: { id: activityId },
+            select: { name: true }
+        });
+
         const studentName = student ? student.fullName : 'یک دانش‌آموز';
         const activityName = activityDef ? activityDef.name : 'یک فعالیت';
 
         if (admins.length > 0) {
-            const notifications = admins.map(admin => ({
-                userId: admin._id,
-                activityId:newStudentActivity._id,
-                title: `درخواست فعالیت جدید از ${studentName}`,
-                message: `فعالیت "${activityName}" برای بررسی ثبت شده است.`,
-                type: 'new_activity_submission',
-                relatedLink: `/activities`, // << لینک به صفحه بررسی ادمین
-                relatedDocId: newStudentActivity._id,
-                iconBgColor: 'bg-blue-500',
-            }));
-
-            await Notification.insertMany(notifications);
+            await prisma.notification.createMany({
+                data: admins.map(admin => ({
+                    userId: admin.id,
+                    activityId: newStudentActivity.id,
+                    title: `درخواست فعالیت جدید از ${studentName}`,
+                    message: `فعالیت "${activityName}" برای بررسی ثبت شده است.`,
+                    type: 'new_activity_submission',
+                    relatedLink: `/activities`,
+                    relatedDocId: newStudentActivity.id,
+                    iconBgColor: 'bg-blue-500'
+                }))
+            });
         }
     } catch (notificationError) {
         console.error('خطا در ایجاد اعلان فعالیت برای ادمین‌ها:', notificationError);
     }
-    // --- پایان کد جدید ---
 
     res.status(201).json({
         success: true,
@@ -249,82 +203,72 @@ export const createStudentActivity = catchAsync(async (req, res, next) => {
         data: newStudentActivity
     });
 });
-export const getAllStudentActivities=catchAsync(async(req,res,next)=>{
-    const features=new ApiFeatures(StudentActivity,req.query)
-    .sort()
-    .populate()
-    .filter()
-    .limitFields()
-    const studentActivities=await features.query
-    return res.status(200).json({
-        success:true,
-        data:studentActivities
-    })
-})
-export const getOneStudentActivity=catchAsync(async(req,res,next)=>{
-    const {id}=req.params
-    const studentActivity=await StudentActivity.findById(id)
-    return res.status(200).json({
-        data:studentActivity,
-        success:true
-    })
-})
 
+export const getAllStudentActivities = catchAsync(async (req, res, next) => {
+    const { status, userId } = req.query;
+    const where = {};
+    if (status) where.status = status;
+    if (userId) where.userId = userId;
+
+    const studentActivities = await prisma.studentActivity.findMany({
+        where,
+        include: {
+            user: { select: { id: true, fullName: true, grade: true, class: true } },
+            activity: true
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    return res.status(200).json({
+        success: true,
+        data: studentActivities
+    });
+});
+
+export const getOneStudentActivity = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const studentActivity = await prisma.studentActivity.findUnique({
+        where: { id },
+        include: {
+            user: { select: { id: true, fullName: true, grade: true, class: true } },
+            activity: true
+        }
+    });
+    return res.status(200).json({
+        data: studentActivity,
+        success: true
+    });
+});
 
 export const getPendingStudentActivitiesAggregated = catchAsync(async (req, res, next) => {
-    const limit = parseInt(req.query.limit) || 6;
-    const sortBy = req.query.sort || { createdAt: -1 }; // آبجکت برای $sort
-  
-    const pendingActivities = await StudentActivity.aggregate([
-      {
-        $match: { status: 'pending' } // فیلتر کردن درخواست‌های در حال انتظار
-      },
-      {
-        $sort: sortBy // مرتب‌سازی (مثلاً بر اساس جدیدترین)
-      },
-      {
-        $limit: limit // محدود کردن تعداد نتایج
-      },
-      {
-        $lookup: { // معادل populate برای userId
-          from: 'users', // نام collection کاربران (معمولاً جمع و با حرف کوچک)
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userDetails' // نام فیلد جدید که حاوی اطلاعات کاربر join شده است
-        }
-      },
-      {
-        $unwind: { // از آنجایی که userDetails یک آرایه است (حتی اگر یک نتیجه داشته باشد)، آن را باز می‌کنیم
-          path: '$userDetails',
-          preserveNullAndEmptyArrays: true // اگر کاربری یافت نشد، رکورد اصلی StudentActivity حذف نشود
-        }
-      },
-      {
-        $project: { // انتخاب و تغییر نام فیلدهای خروجی
-          _id: 1,
-          activityId: 1,
-          details: 1,
-          status: 1,
-          scoreAwarded: 1,
-          adminComment: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          userFullName: '$userDetails.fullName', // استخراج نام کامل از آبجکت join شده
-          userId: '$userDetails._id' // اگر به آی‌دی کاربر هم نیاز دارید
-          // می‌توانید فیلدهای دیگری از userDetails را هم اینجا اضافه کنید
-        }
-      }
-    ]);
-  
-    res.status(200).json({
-      success: true,
-      results: pendingActivities.length,
-      data: pendingActivities,
+    const limit = parseInt(req.query.limit, 10) || 6;
+
+    const pendingActivities = await prisma.studentActivity.findMany({
+        where: { status: 'pending' },
+        include: {
+            user: { select: { id: true, fullName: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit
     });
-  });
 
+    const formatted = pendingActivities.map(pa => ({
+        _id: pa.id,
+        id: pa.id,
+        activityId: pa.activityId,
+        details: pa.details,
+        status: pa.status,
+        scoreAwarded: pa.scoreAwarded,
+        adminComment: pa.adminComment,
+        createdAt: pa.createdAt,
+        updatedAt: pa.updatedAt,
+        userFullName: pa.user?.fullName,
+        userId: pa.user?.id
+    }));
 
-  // adminReviewController.js یا studentActivityController.js
-
-
-// import ApiFeatures from '../Utils/apiFeatures.js'; // اگر می‌خواهید برای بخش‌های ساده‌تر استفاده کنید
+    res.status(200).json({
+        success: true,
+        results: formatted.length,
+        data: formatted
+    });
+});

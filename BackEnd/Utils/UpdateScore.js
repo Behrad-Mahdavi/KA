@@ -1,53 +1,42 @@
-import StudentActivity from "../Models/StudentActivityMd.js";
-import AdminActivity from "../Models/AdminActivityMd.js";
-import StudentReward from "../Models/StudentRewardMd.js";
-import updateStudentRankings from "./updateRanks.js";
-import HandleERROR from "./handleError.js";
+import prisma from './prisma.js';
+import updateStudentRankings from './updateRanks.js';
 
-// utils/UpdateScore.js (تابع updateUserScore اصلاح شده)
-// utils/UpdateScore.js
-export const updateUserScore = async (userInstance) => { // حالا یک نمونه User از قبل fetch شده رو می‌گیره
-    let totalScore = 0;
+export const updateUserScore = async (userId) => {
+  try {
+    const uId = typeof userId === 'object' && (userId.id || userId._id) ? String(userId.id || userId._id) : String(userId);
+    if (!uId) return false;
 
-    const studentActivities = await StudentActivity.find({ userId: userInstance._id, status: "approved" });
-    const adminActivities = await AdminActivity.find({ userId: userInstance._id });
+    // 1. جمع امتیاز فعالیت‌های تایید شده دانش‌آموز
+    const studentActAgg = await prisma.studentActivity.aggregate({
+      where: { userId: uId, status: 'approved' },
+      _sum: { scoreAwarded: true }
+    });
 
-    studentActivities.forEach(activity => totalScore += (activity.scoreAwarded || 0));
-    adminActivities.forEach(activity => totalScore += (activity.scoreAwarded || 0));
+    // 2. جمع امتیاز فعالیت‌های ثبت‌شده توسط ادمین
+    const adminActAgg = await prisma.adminActivity.aggregate({
+      where: { userId: uId },
+      _sum: { scoreAwarded: true }
+    });
 
-    const newActivityIds = [
-        ...studentActivities.map(a => a._id),
-        ...adminActivities.map(a => a._id)
-    ];
-    // مقایسه برای جلوگیری از آپدیت غیر ضروری آرایه activities
-    const activitiesChanged = !(userInstance.activities.length === newActivityIds.length &&
-                               userInstance.activities.every((id, i) => id.equals(newActivityIds[i])));
-    if(activitiesChanged) {
-        userInstance.activities = newActivityIds;
-    }
+    const totalScore = (studentActAgg._sum.scoreAwarded || 0) + (adminActAgg._sum.scoreAwarded || 0);
+    const token = Math.floor(totalScore * 0.95);
 
+    // 3. به‌روزرسانی امتیاز و توکن کاربر
+    await prisma.user.update({
+      where: { id: uId },
+      data: {
+        score: totalScore,
+        token: token
+      }
+    });
 
-    const approvedRewards = await StudentReward.find({ userId: userInstance._id, status: "approved" });
-    const approvedRewardIds = approvedRewards.map(r => r._id);
-
-    // مقایسه برای جلوگیری از آپدیت غیر ضروری آرایه rewards
-    const rewardsChanged = !(userInstance.rewards.length === approvedRewardIds.length &&
-                             userInstance.rewards.every((id, i) => id.equals(approvedRewardIds[i])));
-    if(rewardsChanged) {
-        userInstance.rewards = approvedRewardIds;
-    }
-
-    let scoreChanged = false;
-    if (userInstance.score !== totalScore) {
-        userInstance.score = totalScore;
-        scoreChanged = true;
-    }
-
-
-    await updateStudentRankings(); // این باید همیشه اجرا بشه چون ممکنه امتیاز بقیه هم تغییر کرده باشه
+    // 4. به‌روزرسانی رتبه‌ها
+    await updateStudentRankings();
     return true;
+  } catch (err) {
+    console.error('Error in updateUserScore:', err);
+    return false;
+  }
 };
 
-
-
-
+export default updateUserScore;

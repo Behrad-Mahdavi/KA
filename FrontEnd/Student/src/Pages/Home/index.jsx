@@ -43,7 +43,7 @@ export default function StudentDashboard({ Open }) {
     }
   ]
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const navigate = useNavigate();
 
@@ -327,15 +327,18 @@ export default function StudentDashboard({ Open }) {
                     {(dashboardData.topStudentsInMyGrade && dashboardData.topStudentsInMyGrade.length > 0) ? (
                       <table className="w-full min-w-max">
                         <tbody>
-                          {dashboardData.topStudentsInMyGrade.slice(0, 5).map((student, i) => (
-                            <tr key={student.userId || i} className={`h-12 border-b ${student.userId == user.id ? "bg-[#D4F3F1]" : "bg-white"} border-gray-200/80 last:border-b-0 text-right text-sm`}>
-                              <td className={`px-4 py-2 text-left ${student.userId == user.id ? "text-[#046A60] font-bold" : "text-[#202A5A]"} w-24 `}>{formatNumberToPersian(student.score)}</td>
-                              <td className={`px-4 py-2 ${student.userId == user.id ? " text-[#046A60] " : "text-[#202A5A]"} ${student.userId == user.id ? " font-bold " : "font-medium"}`}>
-                                {student.fullName} <span className={`font-medium ${student.userId == user.id ? "text-[#046A60]/80" : "text-gray-400"}`}>({student.classNum || student.class || 'N/A'})</span>
+                          {dashboardData.topStudentsInMyGrade.slice(0, 5).map((student, i) => {
+                            const isMe = user && (student.userId == user.id || student.id == user.id);
+                            return (
+                            <tr key={student.userId || student.id || i} className={`h-12 border-b ${isMe ? "bg-[#D4F3F1]" : "bg-white"} border-gray-200/80 last:border-b-0 text-right text-sm`}>
+                              <td className={`px-4 py-2 text-left ${isMe ? "text-[#046A60] font-bold" : "text-[#202A5A]"} w-24 `}>{formatNumberToPersian(student.score)}</td>
+                              <td className={`px-4 py-2 ${isMe ? " text-[#046A60] " : "text-[#202A5A]"} ${isMe ? " font-bold " : "font-medium"}`}>
+                                {student.fullName} <span className={`font-medium ${isMe ? "text-[#046A60]/80" : "text-gray-400"}`}>({student.classNum || student.class || 'N/A'})</span>
                               </td>
-                              <td className={`px-4 py-2 text-center ${student.userId == user.id ? "text-[#046A60]" : "text-[#202A5A]"} font-medium w-12`}>{student.rank}</td>
+                              <td className={`px-4 py-2 text-center ${isMe ? "text-[#046A60]" : "text-[#202A5A]"} font-medium w-12`}>{student.rank}</td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     ) : (

@@ -1,51 +1,27 @@
-import User from "../Models/UserMd.js";
+import prisma from './prisma.js';
 
-async function updateStudentRankings() {
-  const students = await User.find({ role: "student" }).sort({ score: -1 });
-
-  const bulkUpdates = [];
-
-  students.forEach((student, index) => {
-    bulkUpdates.push({
-      updateOne: {
-        filter: { _id: student._id },
-        update: { rankInSchool: index + 1 },
-      },
-    });
-  });
-
-  const grades = [...new Set(students.map((student) => student.grade))];
-  for (const grade of grades) {
-    const studentsInGrade = students
-      .filter((student) => student.grade === grade) 
-      .sort((a, b) => b.score - a.score);
-    studentsInGrade.forEach((student, index) => {
-      bulkUpdates.push({
-        updateOne: {
-          filter: { _id: student._id },
-          update: { rankInGrade: index + 1 },
-        },
-      });
-    });
-  }
-
-  const classes = [...new Set(students.map((student) => student.class))];
-  for (const classId of classes) {
-    const studentsInClass = students
-      .filter((student) => student.class === classId)
-      .sort((a, b) => b.score - a.score);
-    studentsInClass.forEach((student, index) => {
-      bulkUpdates.push({
-        updateOne: {
-          filter: { _id: student._id },
-          update: { rankInClass: index + 1 },
-        },
-      });
-    });
-  }
-
-  if (bulkUpdates.length > 0) {
-    await User.bulkWrite(bulkUpdates);
+export async function updateStudentRankings() {
+  try {
+    await prisma.$executeRaw`
+      WITH ranked AS (
+        SELECT 
+          id,
+          DENSE_RANK() OVER (ORDER BY score DESC)::int as s_rank,
+          DENSE_RANK() OVER (PARTITION BY grade ORDER BY score DESC)::int as g_rank,
+          DENSE_RANK() OVER (PARTITION BY grade, class ORDER BY score DESC)::int as c_rank
+        FROM "User"
+        WHERE role = 'student'
+      )
+      UPDATE "User" u
+      SET 
+        "rankInSchool" = r.s_rank,
+        "rankInGrade" = r.g_rank,
+        "rankInClass" = r.c_rank
+      FROM ranked r
+      WHERE u.id = r.id;
+    `;
+  } catch (err) {
+    console.error('Error in updateStudentRankings:', err);
   }
 }
 

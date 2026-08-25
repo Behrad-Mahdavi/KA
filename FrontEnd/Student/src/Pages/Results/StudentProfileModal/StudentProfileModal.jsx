@@ -13,10 +13,10 @@ const StudentProfileModal = ({ isOpen, onClose, student, token }) => {
   const [studentDetails, setStudentDetails] = useState(null);
   const [activitiesByCategory, setActivitiesByCategory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const user = JSON.parse(localStorage.getItem("user"))
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   // حالت باز/بسته هر دسته‌بندی
+  
   const [expandedCategories, setExpandedCategories] = useState({});
 
   useEffect(() => {
@@ -122,10 +122,10 @@ const StudentProfileModal = ({ isOpen, onClose, student, token }) => {
                   <p className="text-sm text-gray-500">نام کامل</p>
                   <p className="font-semibold text-lg">{studentDetails.fullName || "نامشخص"}</p>
                 </div>
-                {parseInt(user.idcode) == parseInt(studentDetails.idCode) ? (<div className="bg-gray-50 p-4 rounded-lg">
+                {user && (user.idcode || user.idCode) && studentDetails.idCode && (String(user.idcode || user.idCode).trim() === String(studentDetails.idCode).trim()) ? (<div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">کد ملی</p>
                   <p className="font-semibold">{studentDetails.idCode || "نامشخص"}</p>
-                </div>) : (<></>)}
+                </div>) : null}
 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-500">پایه تحصیلی</p>

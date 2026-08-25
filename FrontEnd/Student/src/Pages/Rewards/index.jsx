@@ -441,13 +441,15 @@ export default function Rewards({ Open, handleRefresh }) {
                                         const statusDetails = getStatusDetails(reward.status);
                                         const formattedSubmissionDate = formatDateToPersian(reward.createdAt);
                                         const formattedPaymentDate = reward.status === 'approved' ? formatDateToPersian(reward.updatedAt) : "نامشخص";
-                                        const rewardDetailsForModal = { ...reward, title: reward.rewardId?.name || "بدون عنوان", tokenCost: reward.token, submissionDate: formattedSubmissionDate, paymentDate: formattedPaymentDate, status: statusDetails.text, statusColor: statusDetails.color };
+                                        const rewardTitle = reward.reward?.name || reward.rewardId?.name || reward.rewardName || "بدون عنوان";
+                                        const studentName = reward.user?.fullName || reward.userId?.fullName || reward.studentName || "من";
+                                        const rewardDetailsForModal = { ...reward, title: rewardTitle, tokenCost: reward.token, submissionDate: formattedSubmissionDate, paymentDate: formattedPaymentDate, status: statusDetails.text, statusColor: statusDetails.color };
                                         return (
-                                            <tr key={reward._id} onClick={() => handleOpenDetailsModal(rewardDetailsForModal)}
+                                            <tr key={reward.id || reward._id || idx} onClick={() => handleOpenDetailsModal(rewardDetailsForModal)}
                                                 className={`${isRewardNew(reward) ? "bg-[#D4F3F1]" : ""} ${idx % 2 === 0 && !isRewardNew(reward) ? "bg-white" : !isRewardNew(reward) ? "bg-gray-50/50" : ""
-                                                    }  hover:bg-gray-100 transition-colors`}                                             >
-                                                <td className="px-4 py-3  border-right-none border-2 border-solid border-[#F2F2F2] h-15 text-center ...">{reward.userId?.fullName || "نامشخص"}</td>
-                                                <td className="px-4 py-3  border-2 border-solid border-[#F2F2F2] h-15 text-center ...">{reward.rewardId?.name || "بدون عنوان"}</td>
+                                                    }  hover:bg-gray-100 transition-colors cursor-pointer`}                                             >
+                                                <td className="px-4 py-3  border-right-none border-2 border-solid border-[#F2F2F2] h-15 text-center ...">{studentName}</td>
+                                                <td className="px-4 py-3  border-2 border-solid border-[#F2F2F2] h-15 text-center ...">{rewardTitle}</td>
                                                 <td className="px-4 py-3  border-2 border-solid border-[#F2F2F2] h-15 text-center rtl ...">{formattedSubmissionDate}</td>
                                                 <td className="px-4 py-3  border-2 border-solid border-[#F2F2F2] h-15 text-center rtl ...">{formattedPaymentDate}</td>
                                                 <td className={`px-4 py-3 border-left-none h-15 border-2 border-solid border-[#F2F2F2] text-center ... ${statusDetails.color}`}>{statusDetails.text}</td>

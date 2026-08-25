@@ -50,15 +50,33 @@ app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.static("Public")); 
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "KA-Platform Backend API is running successfully!",
+    frontends: {
+      student: "http://localhost:5173",
+      admin: "http://localhost:5174",
+      superAdmin: "http://localhost:5175"
+    }
+  });
+});
+
+
 
 // حالا روت‌ها رو مثل قبل تعریف می‌کنیم
 app.use("/api/auth",authRouter)
 app.use("/api/update-status",updateStatusRouter)
 app.use("/api/activity",activityRouter)
+app.use("/api/activities",activityRouter)
 app.use("/api/reward",rewardRouter)
+app.use("/api/rewards",rewardRouter)
 app.use("/api/student-activity",studentActivityRouter)
+app.use("/api/student-activities",studentActivityRouter)
 app.use("/api/admin-activity",adminActivityRouter)
+app.use("/api/admin-activities",adminActivityRouter)
 app.use("/api/student-reward",studentRewardRouter)
+app.use("/api/student-rewards",studentRewardRouter)
 app.use("/api/users",userRouter)
 app.use("/api/exel",exelRouter)
 app.use('/api/dashboard', dashboardRouter);

@@ -1,78 +1,102 @@
-import Activity from "../Models/ActivityMd.js";
 import catchAsync from "../Utils/catchAsync.js";
-import ApiFeatures from "../Utils/apiFeatures.js";
-import HandleERROR from "../Utils/handleError.js"; // اگر HandleERROR را لازم دارید و import نشده
+import prisma from "../Utils/prisma.js";
+import HandleERROR from "../Utils/handleError.js";
 
-export const createActivity=catchAsync(async(req,res,next)=>{
-    const activity=await Activity.create(req.body)
+export const createActivity = catchAsync(async (req, res, next) => {
+    const activity = await prisma.activity.create({
+        data: req.body
+    });
     return res.status(201).json({
-        success:true,
+        success: true,
         message: "activity created successfully",
-        data:activity
-    })
-})
-export const getAllActivities=catchAsync(async(req,res,next)=>{
-    const features=new ApiFeatures(Activity,req.query)
-    .sort()
-    .populate()
-    .filter()
-    .limitFields()
-    const activities=await features.query
+        data: activity
+    });
+});
+
+export const getAllActivities = catchAsync(async (req, res, next) => {
+    const { parent } = req.query;
+    const where = {};
+    if (parent) where.parent = parent;
+
+    const activities = await prisma.activity.findMany({
+        where,
+        orderBy: [
+            { order: 'asc' },
+            { name: 'asc' }
+        ]
+    });
+    const formatted = activities.map(a => ({ ...a, _id: a.id }));
     return res.status(200).json({
-        success:true,
-        data:activities
-    })
-})
-export const getOneActivity=catchAsync(async(req,res,next)=>{
-    const {id}=req.params
-    const activity=await Activity.findById(id)
+        success: true,
+        data: formatted
+    });
+});
+
+export const getOneActivity = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const activity = await prisma.activity.findUnique({
+        where: { id }
+    });
+    if (!activity) {
+        return next(new HandleERROR("فعالیت یافت نشد", 404));
+    }
     return res.status(200).json({
-        data:activity,
-        success:true
-    })
-})
-export const removeActivity=catchAsync(async(req,res,next)=>{
-    const {id}=req.params
-    await Activity.findByIdAndDelete(id)
+        data: { ...activity, _id: activity.id },
+        success: true
+    });
+});
+
+export const removeActivity = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    await prisma.activity.delete({
+        where: { id }
+    });
     return res.status(200).json({
-        success:true,
-        message:"activity removed successfully"
-    })
-})
+        success: true,
+        message: "activity removed successfully"
+    });
+});
 
 export const findActivityByDetails = catchAsync(async (req, res, next) => {
-    const { parent, name } = req.query; // name همان title از فرم است
+    const { parent, name } = req.query;
     if (!parent || !name) {
-      return next(new HandleERROR('دسته‌بندی و عنوان فعالیت الزامی است.', 400));
+        return next(new HandleERROR('دسته‌بندی و عنوان فعالیت الزامی است.', 400));
     }
-    const activity = await Activity.findOne({
-      parent,
-      name: { $regex: `^${name.trim()}$`, $options: 'i' }
-    }).select('_id name parent');
-  
+    const activity = await prisma.activity.findFirst({
+        where: {
+            parent: parent,
+            name: {
+                equals: name.trim(),
+                mode: 'insensitive'
+            }
+        },
+        select: {
+            id: true,
+            name: true,
+            parent: true
+        }
+    });
+
     if (!activity) {
-      return next(new HandleERROR('فعالیتی با این مشخصات یافت نشد.', 404));
+        return next(new HandleERROR('فعالیتی با این مشخصات یافت نشد.', 404));
     }
     res.status(200).json({ success: true, data: activity });
-  });
+});
 
-
-
-  // Controllers/ActivityCn.js
-// ... (سایر import ها و توابع موجود) ...
-
-// Controllers/ActivityCn.js
 export const getActivitiesByParent = catchAsync(async (req, res, next) => {
-    // پارامتر parent از query string خوانده می‌شود (مثال: /api/activity/by-parent?parent=فعالیت‌های%۲۰آموزشی)
     const { parent: parentCategory } = req.query;
 
     if (!parentCategory) {
         return res.status(400).json({ success: false, message: 'دسته بندی والد فعالیت (پارامتر parent در query string) الزامی است.' });
     }
 
-    const activities = await Activity.find({ parent: parentCategory })
-                                     .sort({ order: 1, name: 1 }) // مرتب‌سازی اولیه بر اساس فیلد order، سپس بر اساس نام
-                                     .lean(); // .lean() برای پرفورمنس بهتر چون فقط برای نمایش است
+    const activities = await prisma.activity.findMany({
+        where: { parent: parentCategory },
+        orderBy: [
+            { order: 'asc' },
+            { name: 'asc' }
+        ]
+    });
 
     res.status(200).json({
         success: true,

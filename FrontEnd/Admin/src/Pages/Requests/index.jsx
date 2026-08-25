@@ -45,8 +45,8 @@ export default function Requests({ Open }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const notificationRef = useRef(null); // اسم رفرنس رو ساده نگه می‌داریم
 
-    const toggleNotificationPanel = () => setIsNotificationPanelOpen((prev) => !prev);
-    const closeNotificationPanel = () => setIsNotificationPanelOpen(false);
+    const toggleNotificationPanel = () => setIsNotificationOpen((prev) => !prev);
+    const closeNotificationPanel = () => setIsNotificationOpen(false);
     // --- پایان بخش کد برای نوتیفیکیشن ---
 
     // ... بقیه state های شما مثل isModalOpen و ...
@@ -167,7 +167,7 @@ export default function Requests({ Open }) {
         queryParams.append('page', pagination.currentPage);
         queryParams.append('limit', pagination.limit);
         try {
-            const response = await fetchData(`admin-review/student-activities-list?${queryParams.toString()}`, { headers: { authorization: `Berear ${token}` } });
+            const response = await fetchData(`admin-review/student-activities-list?${queryParams.toString()}`, { headers: { authorization: `Bearer ${token}` } });
             if (response.success && response.data) {
                 setRequestsList(response.data);
                 setPagination(prev => ({ ...prev, totalPages: response.totalPages || 1, totalCount: response.totalCount || 0, currentPage: response.currentPage || 1, }));
@@ -204,7 +204,7 @@ export default function Requests({ Open }) {
 
             const response = await fetchData(`admin-review/student-activities/${studentActivityId}/approve`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', authorization: `Berear ${token}` },
+                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
 
@@ -223,7 +223,7 @@ export default function Requests({ Open }) {
         // ... (کد handleReject بدون تغییر، فقط مطمئن شوید refreshDataAfterAction را صدا می‌زند)
         if (!token || !studentActivityId) return;
         try {
-            const response = await fetchData(`admin-review/student-activities/${studentActivityId}/reject`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', authorization: `Berear ${token}` }, body: JSON.stringify({ adminComment }) });
+            const response = await fetchData(`admin-review/student-activities/${studentActivityId}/reject`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ adminComment }) });
             if (response.success) { await refreshDataAfterAction(); }
             else { alert("خطا در رد: " + (response.message || "خطای نامشخص")); }
         } catch (err) { alert("خطای شبکه: " + err.message); }

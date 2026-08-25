@@ -1,52 +1,37 @@
 import catchAsync from '../Utils/catchAsync.js';
-import User from '../Models/UserMd.js';
-import ApiFeatures from '../Utils/apiFeatures.js';
+import prisma from '../Utils/prisma.js';
 import HandleERROR from '../Utils/handleError.js';
-import AdminActivity from '../Models/AdminActivityMd.js';
-import StudentActivity from '../Models/StudentActivityMd.js';
-import Activity from '../Models/ActivityMd.js';
-import mongoose from 'mongoose';
 
-
-
-// userController.js
 export const getUserSummaryStats = catchAsync(async (req, res, next) => {
-  const stats = await User.aggregate([
-    { $match: { role: 'student' } },
-    { $group: { _id: null, totalScore: { $sum: '$score' } } },
-    { $project: { _id: 0, totalScore: 1 } }
-  ]);
-  res.status(200).json({ success: true, data: stats[0] || { totalScore: 0 } });
+  const stats = await prisma.user.aggregate({
+    where: { role: 'student' },
+    _sum: { score: true }
+  });
+  res.status(200).json({ success: true, data: { totalScore: stats._sum.score || 0 } });
 });
 
 export const getAllStudentsForSelection = catchAsync(async (req, res, next) => {
-  // دریافت پارامترهای فیلتر از query string
   const { grade } = req.query;
-  
-  // ساخت شرط فیلتر اولیه
-  const filter = { role: 'student' };
-  
-  // اضافه کردن فیلتر پایه اگر وجود داشت
+  const where = { role: 'student' };
   if (grade && ['دهم', 'یازدهم', 'دوازدهم'].includes(grade)) {
-    filter.grade = grade;
+    where.grade = grade;
   }
 
-  // ساخت کوئری با امکان فیلتر، مرتب‌سازی و صفحه‌بندی
-  const features = new ApiFeatures(
-    User.find(filter).select('_id fullName grade class'), // فقط فیلدهای مورد نیاز
-    req.query
-  )
-    .sort('fullName') // پیش‌فرض مرتب‌سازی بر اساس نام
-    .limitFields() // فقط فیلدهای انتخاب شده در select
-    .paginate(); // صفحه‌بندی اختیاری
+  const students = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      fullName: true,
+      grade: true,
+      class: true
+    },
+    orderBy: { fullName: 'asc' }
+  });
 
-  const students = await features.query;
-  
-  // تبدیل به فرمت مناسب برای dropdown
   const studentsForDropdown = students.map(student => ({
-    value: student._id,
-    label: `${student.fullName} - پایه ${student.grade} - کلاس ${student.class || 'نامشخص'}`,
-    rawData: student // در صورت نیاز به تمام اطلاعات
+    value: student.id,
+    label: `${student.fullName} - پایه ${student.grade || ''} - کلاس ${student.class || 'نامشخص'}`,
+    rawData: student
   }));
 
   res.status(200).json({
@@ -56,18 +41,30 @@ export const getAllStudentsForSelection = catchAsync(async (req, res, next) => {
   });
 });
 
-
 export const findStudentByDetails = catchAsync(async (req, res, next) => {
-  const { fullName, grade, class: studentClass } = req.query; // class کلمه کلیدی است
-  if (!fullName || !grade || !studentClass) {
-    return next(new HandleERROR('نام کامل، پایه و کلاس دانش‌آموز الزامی است.', 400));
+  const { grade, class: classNumber, fullName } = req.query;
+  if (!grade || !classNumber || !fullName) {
+    return next(new HandleERROR('پایه، کلاس و نام دانش‌آموز الزامی است.', 400));
   }
-  const student = await User.findOne({
-    fullName: { $regex: `^${fullName.trim()}$`, $options: 'i' }, // جستجوی دقیق و بدون حساسیت به حروف
-    grade,
-    class: parseInt(studentClass),
-    role: 'student'
-  }).select('_id fullName');
+
+  const student = await prisma.user.findFirst({
+    where: {
+      role: 'student',
+      grade: grade,
+      class: parseInt(classNumber, 10),
+      fullName: {
+        contains: fullName.trim(),
+        mode: 'insensitive'
+      }
+    },
+    select: {
+      id: true,
+      fullName: true,
+      idCode: true,
+      grade: true,
+      class: true
+    }
+  });
 
   if (!student) {
     return next(new HandleERROR('دانش‌آموزی با این مشخصات یافت نشد.', 404));
@@ -75,561 +72,272 @@ export const findStudentByDetails = catchAsync(async (req, res, next) => {
   res.status(200).json({ success: true, data: student });
 });
 
-
-
-
-
 export const getTopStudentsByAllGrades = catchAsync(async (req, res, next) => {
-  const limitPerGrade = parseInt(req.query.limit) || 4;
+  const limitPerGrade = parseInt(req.query.limit, 10) || 3;
+  const grades = ['دهم', 'یازدهم', 'دوازدهم'];
 
-  // نام متغیر را به aggregationPipelineResult تغییر می‌دهیم تا واضح‌تر باشد
-  const aggregationPipelineResult = await User.aggregate([
-    {
-      $match: { role: 'student', grade: { $in: ['دهم', 'یازدهم', 'دوازدهم'] } }
-    },
-    {
-      $sort: { score: -1 }
-    },
-    {
-      $group: {
-        _id: '$grade',
-        students: { $push: { _id: '$_id', fullName: '$fullName', score: '$score' } }
-      }
-    },
-    {
-      $project: {
-        _id: 1,
-        topStudents: { $slice: ['$students', limitPerGrade] }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        gradesData: { $push: { k: '$_id', v: '$topStudents' } }
-      }
-    },
-    {
-      $replaceRoot: {
-        newRoot: {
-          $cond: {
-            if: { $or: [ { $eq: ["$gradesData", null] }, { $eq: [{ $size: "$gradesData" }, 0] } ] },
-            then: {},
-            else: { $arrayToObject: '$gradesData' }
-          }
-        }
-      }
-    }
-  ]);
+  const results = await Promise.all(
+    grades.map(async (grade) => {
+      const topStudents = await prisma.user.findMany({
+        where: { role: 'student', grade },
+        select: {
+          id: true,
+          fullName: true,
+          grade: true,
+          class: true,
+          score: true,
+          rankInGrade: true,
+          rankInSchool: true
+        },
+        orderBy: { score: 'desc' },
+        take: limitPerGrade
+      });
+      return { grade, students: topStudents };
+    })
+  );
 
-  // aggregationPipelineResult یک آرایه است.
-  // آبجکت داده‌های ما (اگر وجود داشته باشد) در اولین عضو این آرایه است.
-  // اگر پایپ‌لاین هیچ نتیجه‌ای از $match اولیه پیدا نکند، aggregationPipelineResult آرایه خالی [] خواهد بود.
-  // اگر نتیجه‌ای باشد ولی پس از $replaceRoot آبجکت خالی {} تولید شود، aggregationPipelineResult می‌شود [{}]
-  
+  const finalData = {};
+  results.forEach(r => {
+    finalData[r.grade] = r.students;
+  });
 
-  const actualData = (aggregationPipelineResult.length > 0) ? aggregationPipelineResult[0] : {};
+  res.status(200).json({ success: true, data: finalData });
+});
 
-  // حالا result را از actualData می‌سازیم
-  const result = {
-    'دهم': actualData['دهم'] || [],
-    'یازدهم': actualData['یازدهم'] || [],
-    'دوازدهم': actualData['دوازدهم'] || [],
-  };
+export const getStudentsByGradeAndClass = catchAsync(async (req, res, next) => {
+  const { grade, class: classId, classNum } = req.query;
+  const targetClass = classId || classNum;
+  const where = { role: 'student' };
+  if (grade) where.grade = grade;
+  if (targetClass) where.class = parseInt(targetClass, 10);
+
+  const students = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      fullName: true,
+      grade: true,
+      class: true,
+      score: true,
+      token: true,
+      rankInClass: true,
+      rankInGrade: true,
+      rankInSchool: true
+    },
+    orderBy: { score: 'desc' }
+  });
 
   res.status(200).json({
     success: true,
-    data: result, // ارسال result که حالا باید داده‌های صحیح را داشته باشد
+    results: students.length,
+    data: students
   });
 });
-
-
-
-// Controllers/UserCn.js
-// ... (سایر import ها و توابع موجود) ...
-
-export const getStudentsByGradeAndClass = catchAsync(async (req, res, next) => {
-  const { grade, classNum } = req.query;
-
-  if (!grade || !classNum) {
-      return next(new HandleERROR("پارامترهای 'پایه' و 'کلاس' الزامی هستند.", 400));
-  }
-
-  // تبدیل classNum به عدد، چون در مدل User به صورت Number ذخیره شده است
-  const classNumber = parseInt(classNum, 10);
-  if (isNaN(classNumber)) {
-      return next(new HandleERROR("مقدار 'کلاس' باید یک عدد معتبر باشد.", 400));
-  }
-
-  const students = await User.find({
-      role: 'student', // اطمینان از اینکه فقط دانش آموزان انتخاب می شوند
-      grade: grade,
-      class: classNumber,
-  }).select('_id fullName'); // فقط _id و fullName را برای دراپ داون نیاز داریم
-
-  // حتی اگر دانش آموزی یافت نشود، پاسخ موفقیت آمیز با آرایه خالی ارسال می کنیم
-  // تا فرانت اند بتواند به درستی پیام "دانش آموزی یافت نشد" را نمایش دهد
-  res.status(200).json({
-      success: true,
-      data: students, // students آرایه ای از دانش آموزان خواهد بود یا آرایه خالی []
-  });
-});
-
-// RankingCn.js (یا UserCn.js)
-
 
 export const getOverallRankingTable = catchAsync(async (req, res, next) => {
-    // --- مرحله ۱: گرفتن تمام کاربران دانش‌آموز با امتیازات کلی و رتبه‌ها ---
-    // می‌توانیم از ApiFeatures برای فیلتر کردن کاربران (مثلاً بر اساس پایه یا کلاس) و صفحه‌بندی استفاده کنیم
-    let userQuery = User.find({ role: 'student' })
-                        .select('fullName class score rankInSchool activities') // فیلدهای لازم از User
-                        .sort({ rankInSchool: 1, score: -1 }); // مرتب‌سازی بر اساس رتبه مدرسه، سپس امتیاز
-
-    // اگر ApiFeatures برای فیلتر و صفحه‌بندی کاربران استفاده می‌شود:
-    const features = new ApiFeatures(userQuery, req.query)
-        .filter()   // فیلتر مثلا بر اساس req.query.grade یا req.query.class
-        .paginate()
-        .sort();  // اگر sort پیش‌فرض بالا کافی نیست
-
-    const users = await features.query.lean(); // .lean() برای پرفورمنس
-    const totalUsers = await User.countDocuments(features.getQueryFilters ? features.getQueryFilters() : { role: 'student', ...req.query.filters });
-    console.log(totalUsers)
-
-
-    // --- مرحله ۲: برای هر کاربر، مجموع امتیازات را در دسته‌های مختلف فعالیت محاسبه کن ---
-    const resultsPromises = users.map(async (user) => {
-        const userObjectId = user._id; // _id از کاربر فعلی در حلقه
-
-        // مجموع امتیازات از AdminActivity
-        const adminActivitiesScores = await AdminActivity.aggregate([
-            { $match: { userId: userObjectId } },
-            { $lookup: { from: Activity.collection.name, localField: 'activityId', foreignField: '_id', as: 'activityDetails' } },
-            { $unwind: '$activityDetails' }, // فرض می‌کنیم همیشه activityDetails وجود دارد
-            { $group: { _id: '$activityDetails.parent', totalScore: { $sum: '$scoreAwarded' } } },
-            { $project: { _id: 0, parentName: '$_id', totalScore: 1 } }
-        ]);
-
-        // مجموع امتیازات از StudentActivity (فقط تایید شده)
-        const studentActivitiesScores = await StudentActivity.aggregate([
-            { $match: { userId: userObjectId, status: 'approved' } },
-            { $lookup: { from: Activity.collection.name, localField: 'activityId', foreignField: '_id', as: 'activityDetails' } },
-            { $unwind: '$activityDetails' },
-            { $group: { _id: '$activityDetails.parent', totalScore: { $sum: '$scoreAwarded' } } },
-            { $project: { _id: 0, parentName: '$_id', totalScore: 1 } }
-        ]);
-
-        // ترکیب امتیازات
-        const scoresByParent = {};
-        adminActivitiesScores.forEach(item => {
-            if(item.parentName) scoresByParent[item.parentName] = (scoresByParent[item.parentName] || 0) + item.totalScore;
-        });
-        studentActivitiesScores.forEach(item => {
-            if(item.parentName) scoresByParent[item.parentName] = (scoresByParent[item.parentName] || 0) + item.totalScore;
-        });
-
-        return {
-            id: user._id.toString(), // یا هر شناسه منحصر به فرد دیگر
-            name: user.fullName,
-            class: user.class ? user.class.toString() : 'نامشخص', // تبدیل به رشته اگر عدد است
-            educationalActivities: scoresByParent['فعالیت‌های آموزشی'] || 0,
-            voluntaryActivities: scoresByParent['فعالیت‌های داوطلبانه و توسعه فردی'] || 0,
-            jobActivities: scoresByParent['فعالیت‌های شغلی'] || 0,
-            deductions: scoresByParent['موارد کسر امتیاز'] || 0, // این معمولاً منفی است
-            score: user.score, // امتیاز کل از مدل User
-            rank: user.rankInSchool || user.rankInGrade || user.rankInClass || 'N/A', // انتخاب رتبه مناسب
-        };
-    });
-
-    const resultsTableData = await Promise.all(resultsPromises);
-
-    res.status(200).json({
-        success: true,
-        results: resultsTableData.length,
-        totalCount: totalUsers,
-        data: resultsTableData
-    });
-});
-
-// UserCn.js یا RankingCn.js
-
-
-
-// ثابت‌های PARENT_NAMES برای دسترسی به امتیازات دسته‌بندی شده
-const EDUCATIONAL_ACTIVITIES = 'فعالیت‌های آموزشی';
-const VOLUNTARY_ACTIVITIES = 'فعالیت‌های داوطلبانه و توسعه فردی';
-const JOB_ACTIVITIES = 'فعالیت‌های شغلی';
-const DEDUCTIONS = 'موارد کسر امتیاز';
-
-export const getSameGradeRankingTable = catchAsync(async (req, res, next) => {
-    const currentUserId = req.userId; // از میدل‌ور isLogin میاد
-
-    // ۱. پیدا کردن پایه (grade) کاربر لاگین شده
-    const currentUser = await User.findById(currentUserId).select('grade').lean();
-    if (!currentUser || !currentUser.grade) {
-        // اگر کاربر پایه نداشت یا پیدا نشد، یک آرایه خالی یا پیام خطا برگردان
-        return res.status(200).json({
-            success: true,
-            message: "پایه تحصیلی شما مشخص نیست یا دانش‌آموزی با این پایه یافت نشد.",
-            results: 0,
-            totalCount: 0,
-            data: []
-        });
-    }
-    const userGrade = currentUser.grade;
-
-    // ۲. گرفتن تمام کاربران هم‌پایه با کاربر فعلی
-    // مرتب‌سازی بر اساس رتبه در پایه (rankInGrade) و سپس امتیاز (score)
-    let userQuery = User.find({ role: 'student', grade: userGrade })
-                        .select('fullName class score rankInGrade activities') // فیلدهای لازم
-                        .sort({ rankInGrade: 1, score: -1 }); // rankInGrade صعودی، score نزولی
-
-    // ۳. اعمال صفحه‌بندی با ApiFeatures (اگر لازم است)
-    const features = new ApiFeatures(userQuery, req.query)
-        .paginate(); // فقط صفحه‌بندی، فیلتر و سورت قبلاً اعمال شده
-
-    const usersInSameGrade = await features.query.lean();
-    const totalUsersInGrade = await User.countDocuments({ role: 'student', grade: userGrade });
-
-    if (!usersInSameGrade || usersInSameGrade.length === 0) {
-        return res.status(200).json({
-            success: true,
-            message: `دانش‌آموزی در پایه ${userGrade} یافت نشد.`,
-            results: 0,
-            totalCount: 0,
-            data: []
-        });
-    }
-
-    // ۴. محاسبه امتیازات دسته‌بندی شده برای هر کاربر هم‌پایه
-    const resultsPromises = usersInSameGrade.map(async (user) => {
-        const userObjectId = user._id;
-
-        // این بخش می‌تواند با یک $lookup و $group پیچیده‌تر در یک aggregation واحد بهینه‌تر شود
-        // اما برای خوانایی فعلاً جداگانه انجام می‌دهیم.
-        const adminActivitiesScores = await AdminActivity.aggregate([
-            { $match: { userId: userObjectId } },
-            { $lookup: { from: Activity.collection.name, localField: 'activityId', foreignField: '_id', as: 'actDetails' } },
-            { $unwind: { path: '$actDetails', preserveNullAndEmptyArrays: true } }, // برای جلوگیری از حذف اگر لینک خراب بود
-            { $match: { "actDetails.parent": { $exists: true, $ne: null } } }, // فقط آنهایی که parent معتبر دارند
-            { $group: { _id: '$actDetails.parent', totalScore: { $sum: '$scoreAwarded' } } }
-        ]);
-
-        const studentActivitiesScores = await StudentActivity.aggregate([
-            { $match: { userId: userObjectId, status: 'approved' } },
-            { $lookup: { from: Activity.collection.name, localField: 'activityId', foreignField: '_id', as: 'actDetails' } },
-            { $unwind: { path: '$actDetails', preserveNullAndEmptyArrays: true } },
-            { $match: { "actDetails.parent": { $exists: true, $ne: null } } },
-            { $group: { _id: '$actDetails.parent', totalScore: { $sum: '$scoreAwarded' } } }
-        ]);
-
-        const scoresByParent = {};
-        adminActivitiesScores.forEach(item => {
-            if(item._id) scoresByParent[item._id] = (scoresByParent[item._id] || 0) + item.totalScore;
-        });
-        studentActivitiesScores.forEach(item => {
-            if(item._id) scoresByParent[item._id] = (scoresByParent[item._id] || 0) + item.totalScore;
-        });
-
-        return {
-            id: user._id.toString(),
-            name: user.fullName,
-            class: user.class ? user.class.toString() : 'نامشخص',
-            educationalActivities: scoresByParent[EDUCATIONAL_ACTIVITIES] || 0,
-            voluntaryActivities: scoresByParent[VOLUNTARY_ACTIVITIES] || 0,
-            jobActivities: scoresByParent[JOB_ACTIVITIES] || 0,
-            deductions: scoresByParent[DEDUCTIONS] || 0,
-            score: user.score,
-            rank: user.rankInGrade || 'N/A', // رتبه در پایه
-        };
-    });
-
-    const resultsTableData = await Promise.all(resultsPromises);
-
-    res.status(200).json({
-        success: true,
-        results: resultsTableData.length,
-        totalCount: totalUsersInGrade,
-        data: resultsTableData
-    });
-});
-
-
-// UserCn.js یا RankingCn.js
-
-// ... (ایمپورت‌ها و ثابت‌ها مثل قبل) ...
-
-// UserCn.js
-
-// ... (ایمپورت‌ها و ثابت‌های EDUCATIONAL_ACTIVITIES و ... مثل قبل) ...
-
-// UserCn.js
-
-// ... (ایمپورت‌ها و ثابت‌های EDUCATIONAL_ACTIVITIES و ... مثل قبل) ...
-
-export const getGradeRankingTable = catchAsync(async (req, res, next) => {
-  let targetGrade = req.query.grade;
-
-  // ---- بخش بررسی targetGrade و currentUser مثل قبل ----
-  if (!targetGrade && req.role === 'student') {
-      const currentUser = await User.findById(req.userId).select('grade').lean();
-      if (!currentUser || !currentUser.grade) {
-          return res.status(400).json({ success: false, message: "پایه تحصیلی برای فیلتر کردن مشخص نشده است." });
+  const students = await prisma.user.findMany({
+    where: { role: 'student' },
+    select: {
+      id: true,
+      fullName: true,
+      grade: true,
+      class: true,
+      score: true,
+      token: true,
+      rankInSchool: true,
+      rankInGrade: true,
+      rankInClass: true,
+      studentActivities: {
+        where: { status: 'approved' },
+        include: { activity: { select: { parent: true } } }
+      },
+      adminActivities: {
+        include: { activity: { select: { parent: true } } }
       }
-      targetGrade = currentUser.grade;
-  } else if (!targetGrade) {
-       return res.status(400).json({ success: false, message: "لطفاً یک پایه برای نمایش جدول انتخاب کنید." });
-  }
-  const validGrades = ['دهم', 'یازدهم', 'دوازدهم'];
-  if (!validGrades.includes(targetGrade)) {
-      return res.status(400).json({ success: false, message: "پایه انتخاب شده معتبر نیست." });
-  }
-  // ---- پایان بخش بررسی targetGrade ----
+    },
+    orderBy: { score: 'desc' }
+  });
 
+  const formattedData = students.map((u, idx) => {
+    let educational = 0;
+    let voluntary = 0;
+    let job = 0;
+    let deductions = 0;
 
-  // ---- بخش گرفتن کاربران و صفحه‌بندی مثل قبل ----
-  let userQuery = User.find({ role: 'student', grade: targetGrade })
-                      .select('fullName class score rankInGrade activities')
-                      .sort({ rankInGrade: 1, score: -1 });
-  const features = new ApiFeatures(userQuery, req.query).paginate();
-  const usersInGrade = await features.query.lean();
-  const totalUsersInGrade = await User.countDocuments({ role: 'student', grade: targetGrade });
+    const addScore = (parent, score) => {
+      if (parent === 'فعالیت‌های آموزشی') educational += score;
+      else if (parent === 'فعالیت‌های داوطلبانه و توسعه فردی') voluntary += score;
+      else if (parent === 'فعالیت‌های شغلی') job += score;
+      else if (parent === 'موارد کسر امتیاز') deductions += score;
+    };
 
-
-
-
-  if (!usersInGrade || usersInGrade.length === 0) {
-      return res.status(200).json({
-          success: true, message: `دانش‌آموزی در پایه ${targetGrade} یافت نشد.`,
-          results: 0, totalCount: 0, data: []
-      });
-  }
-  // ---- پایان بخش گرفتن کاربران ----
-
-
-  // console.log("--- DEBUG: Inside getGradeRankingTable (with AGGREGATES BYPASSED) ---"); // <<<< لاگ جدید
-  // console.log("Target Grade:", targetGrade);
-  // console.log(`Found ${usersInGrade.length} users in this grade.`);
-
-
-  // ۴. محاسبه امتیازات دسته‌بندی شده برای هر کاربر هم‌پایه
-  const resultsPromises = usersInGrade.map(async (user) => {
-    const userObjectId = user._id;
-    // console.log(`Processing user: ${user.fullName} (ID: ${userObjectId})`); // این لاگ رو نگه دار
-
-    // !!!!!!! تغییر مهم برای دیباگ: موقتاً aggregation ها رو با آرایه خالی جایگزین می‌کنیم !!!!!!!
-    const adminActivitiesScores = []; // <--- موقتاً خالی
-    const studentActivitiesScores = []; // <--- موقتاً خالی
-    // console.log(`   Temporarily set adminActivitiesScores and studentActivitiesScores to empty for user ${user.fullName}`); // این لاگ رو نگه دار
-    // !!!!!!! پایان تغییر مهم !!!!!!!
-
-
-    const scoresByParent = {};
-    adminActivitiesScores.forEach(item => {
-        if(item._id) scoresByParent[item._id] = (scoresByParent[item._id] || 0) + item.totalScore;
-    });
-    studentActivitiesScores.forEach(item => {
-        if(item._id) scoresByParent[item._id] = (scoresByParent[item._id] || 0) + item.totalScore;
-    });
-    // console.log(`   scoresByParent for user ${user.fullName}:`, scoresByParent); // این لاگ رو نگه دار
+    (u.studentActivities || []).forEach(sa => addScore(sa.activity?.parent, sa.scoreAwarded || 0));
+    (u.adminActivities || []).forEach(aa => addScore(aa.activity?.parent, aa.scoreAwarded || 0));
 
     return {
-        id: user._id.toString(),
-        name: user.fullName,
-        class: user.class ? user.class.toString() : 'نامشخص',
-        educationalActivities: scoresByParent[EDUCATIONAL_ACTIVITIES] || 0,
-        voluntaryActivities: scoresByParent[VOLUNTARY_ACTIVITIES] || 0,
-        jobActivities: scoresByParent[JOB_ACTIVITIES] || 0,
-        deductions: scoresByParent[DEDUCTIONS] || 0,
-        score: user.score,
-        rank: user.rankInGrade || 'N/A',
+      id: u.id,
+      _id: u.id,
+      userId: u.id,
+      name: u.fullName,
+      fullName: u.fullName,
+      code: u.class || 'N/A',
+      class: u.class || 'N/A',
+      score: u.score,
+      token: u.token,
+      rank: u.rankInSchool || idx + 1,
+      rankInSchool: u.rankInSchool || idx + 1,
+      rankInGrade: u.rankInGrade,
+      rankInClass: u.rankInClass,
+      grade: u.grade,
+      educationalActivities: educational,
+      voluntaryActivities: voluntary,
+      jobActivities: job,
+      deductions: deductions
     };
   });
 
-  const resultsTableData = await Promise.all(resultsPromises);
-  // console.log("--- DEBUG: Final resultsTableData (before sending, aggregates bypassed) ---"); // <<<< لاگ جدید
-  // console.log(JSON.stringify(resultsTableData.slice(0,2), null, 2));
-
-  res.status(200).json({
-      success: true,
-      results: resultsTableData.length,
-      totalCount: totalUsersInGrade,
-      data: resultsTableData
-  });
+  res.status(200).json({ success: true, totalCount: formattedData.length, data: formattedData });
 });
 
+export const getSameGradeRankingTable = catchAsync(async (req, res, next) => {
+  let { grade } = req.query;
+  if (!grade && req.userId) {
+    const me = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (me?.grade) grade = me.grade;
+  }
+  const where = { role: 'student' };
+  if (grade) where.grade = grade;
+
+  const students = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      fullName: true,
+      grade: true,
+      class: true,
+      score: true,
+      token: true,
+      rankInGrade: true,
+      rankInSchool: true,
+      studentActivities: {
+        where: { status: 'approved' },
+        include: { activity: { select: { parent: true } } }
+      },
+      adminActivities: {
+        include: { activity: { select: { parent: true } } }
+      }
+    },
+    orderBy: { score: 'desc' }
+  });
+
+  const formattedData = students.map((u, idx) => {
+    let educational = 0;
+    let voluntary = 0;
+    let job = 0;
+    let deductions = 0;
+
+    const addScore = (parent, score) => {
+      if (parent === 'فعالیت‌های آموزشی') educational += score;
+      else if (parent === 'فعالیت‌های داوطلبانه و توسعه فردی') voluntary += score;
+      else if (parent === 'فعالیت‌های شغلی') job += score;
+      else if (parent === 'موارد کسر امتیاز') deductions += score;
+    };
+
+    (u.studentActivities || []).forEach(sa => addScore(sa.activity?.parent, sa.scoreAwarded || 0));
+    (u.adminActivities || []).forEach(aa => addScore(aa.activity?.parent, aa.scoreAwarded || 0));
+
+    return {
+      id: u.id,
+      _id: u.id,
+      userId: u.id,
+      name: u.fullName,
+      fullName: u.fullName,
+      code: u.class || 'N/A',
+      class: u.class || 'N/A',
+      score: u.score,
+      token: u.token,
+      rank: u.rankInGrade || idx + 1,
+      rankInGrade: u.rankInGrade || idx + 1,
+      rankInSchool: u.rankInSchool || idx + 1,
+      grade: u.grade,
+      educationalActivities: educational,
+      voluntaryActivities: voluntary,
+      jobActivities: job,
+      deductions: deductions
+    };
+  });
+
+  res.status(200).json({ success: true, totalCount: formattedData.length, data: formattedData });
+});
+
+
+export const getGradeRankingTable = catchAsync(async (req, res, next) => {
+  return getSameGradeRankingTable(req, res, next);
+});
 
 export const getStudentById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  
-  const student = await User.findById(id)
-    
-  
-  if (!student) {
-    return next(new HandleERROR('دانش‌آموز یافت نشد', 404));
-  }
-  
-  res.status(200).json({
-    success: true,
-    data: student
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      fullName: true,
+      idCode: true,
+      role: true,
+      grade: true,
+      fieldOfStudy: true,
+      class: true,
+      score: true,
+      token: true,
+      rankInSchool: true,
+      rankInGrade: true,
+      rankInClass: true,
+      createdAt: true
+    }
   });
+
+  if (!user) {
+    return next(new HandleERROR('کاربر یافت نشد.', 404));
+  }
+
+  res.status(200).json({ success: true, data: user });
 });
 
 export const getStudentActivitiesByParent = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
+  const { id: userId } = req.params;
+  const { parent } = req.query;
 
-  // بررسی وجود دانش‌آموز
-  const student = await User.findById(id);
-  if (!student) {
-    return next(new HandleERROR('دانش‌آموز یافت نشد', 404));
-  }
+  const studentActivities = await prisma.studentActivity.findMany({
+    where: {
+      userId,
+      activity: parent ? { parent } : undefined
+    },
+    include: {
+      activity: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 
-  // گروه‌بندی فعالیت‌های دانش‌آموز بر اساس parent
-  const activitiesByParent = await StudentActivity.aggregate([
-    {
-      $match: { userId: mongoose.Types.ObjectId(id), status: 'approved' }
+  const adminActivities = await prisma.adminActivity.findMany({
+    where: {
+      userId,
+      activity: parent ? { parent } : undefined
     },
-    {
-      $lookup: {
-        from: Activity.collection.name,
-        localField: 'activityId',
-        foreignField: '_id',
-        as: 'activityDetails'
-      }
+    include: {
+      activity: true
     },
-    { $unwind: '$activityDetails' },
-    {
-      $group: {
-        _id: '$activityDetails.parent',
-        activities: {
-          $push: {
-            name: '$activityDetails.name',
-            scoreAwarded: '$scoreAwarded',
-            createdAt: '$createdAt'
-          }
-        },
-        totalScore: { $sum: '$scoreAwarded' }
-      }
-    },
-    {
-      $project: {
-        _id: 0,
-        parent: '$_id',
-        activities: 1,
-        totalScore: 1
-      }
-    }
-  ]);
+    orderBy: { createdAt: 'desc' }
+  });
 
   res.status(200).json({
     success: true,
-    data: activitiesByParent
+    data: {
+      studentActivities,
+      adminActivities
+    }
   });
 });
 
-// در controllers/UserCn.js
 export const getStudentActivitiesByCategory = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({
-      success: false,
-      message: 'شناسه کاربر نامعتبر است'
-    });
-  }
-
-  const student = await User.findById(id);
-  if (!student) {
-    return next(new HandleERROR('دانش‌آموز یافت نشد', 404));
-  }
-
-  try {
-    // 1. فعالیت‌های تأیید شده دانش‌آموز
-    const studentActivities = await StudentActivity.find({
-      userId: id,
-      status: 'approved'
-    }).populate('activityId');
-
-    // 2. فعالیت‌هایی که ادمین برای دانش‌آموز ثبت کرده
-    const adminActivities = await AdminActivity.find({
-      userId: id
-    }).populate('activityId');
-
-   
-
-    // 3. ترکیب هر دو نوع فعالیت
-    const allActivities = [...studentActivities, ...adminActivities];
-
-    if (allActivities.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: [],
-        message: 'هیچ فعالیتی برای این دانش‌آموز وجود ندارد'
-      });
-    }
-
-    // 4. تعریف ترتیب دسته‌بندی‌ها بر اساس مدل Activity
-    const categoryOrder = {
-      'موارد کسر امتیاز': 1,
-      'فعالیت‌های آموزشی': 2,
-      'فعالیت‌های شغلی': 3,
-      'فعالیت‌های داوطلبانه و توسعه فردی': 4
-    };
-
-    // 5. گروه‌بندی دستی فعالیت‌ها بر اساس دسته‌بندی
-    const categoriesMap = new Map();
-
-    for (const activity of allActivities) {
-      const activityData = activity.activityId;
-      
-      if (!activityData) continue;
-
-      const categoryName = activityData.parent;
-
-      if (!categoryName || typeof categoryName !== 'string') {
-        // اگر فعالیت parent ندارد، از آن صرف نظر کنید
-        continue;
-      }
-
-      if (!categoriesMap.has(categoryName)) {
-        categoriesMap.set(categoryName, {
-          categoryName,
-          activities: [],
-          totalScore: 0,
-          order: categoryOrder[categoryName] || 99 // ترتیب بر اساس تعریف
-        });
-      }
-
-      const category = categoriesMap.get(categoryName);
-      
-      const activityInfo = {
-        _id: activity._id,
-        activityId: activityData._id,
-        activityName: activityData.name,
-        scoreAwarded: activity.scoreAwarded,
-        description: activityData.description || activity.details,
-        createdAt: activity.createdAt,
-        type: activity.type || 'فردی'
-      };
-
-      category.activities.push(activityInfo);
-      category.totalScore += activity.scoreAwarded || 0;
-    }
-
-    // 6. تبدیل Map به آرایه و مرتب‌سازی بر اساس order
-    const result = Array.from(categoriesMap.values()).sort((a, b) => a.order - b.order);
-
-
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-
-  } catch (error) {
-    console.error('❌ خطا در پردازش فعالیت‌ها:', error);
-    return next(new HandleERROR(
-      `خطا در دریافت فعالیت‌ها: ${error.message}`,
-      500
-    ));
-  }
+  return getStudentActivitiesByParent(req, res, next);
 });
-
-// ... (بقیه کنترلرهای UserCn.js مثل قبل) ...

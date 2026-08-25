@@ -1,160 +1,90 @@
-// Controllers/notificationController.js
-
-import Notification from '../Models/NotificationMd.js';
 import catchAsync from '../Utils/catchAsync.js';
+import prisma from '../Utils/prisma.js';
+import HandleERROR from '../Utils/handleError.js';
 
-/**
- * @desc    Get current user's notifications
- * @route   GET /api/notifications
- * @access  Private (Student)
- */
-/**
- * @desc    Get notifications for the current user (student or admin)
- * @route   GET /api/notifications
- * @access  Private (Student, Admin, SuperAdmin)
- */
 export const getMyNotifications = catchAsync(async (req, res, next) => {
     const userId = req.userId;
-    const userRole = req.role; // <<< تغییر از req.userRole به req.role
-    
+    const { isRead, limit = 20, page = 1 } = req.query;
 
-    const { page = 1, limit = 10, filter = 'all' } = req.query; 
-
-    const query = { userId: userId };
-
-    // اگر کاربر ادمین یا سوپرادمین است، فقط اعلان‌های مربوط به ادمین را نشان بده
-    if (userRole === 'admin' || userRole === 'superAdmin') {
-
-        query.type = { 
-            $in: [
-                'new_activity_submission', 
-                'new_reward_request',
-                'admin_general'
-            ] 
-        };
-    } else { // اگر کاربر دانش‌آموز است، فقط اعلان‌های مربوط به دانش‌آموز را نشان بده
-        query.type = {
-            $in: [
-                'activity_status',
-                'reward_status',
-                'general_announcement',
-                'achievement'
-            ]
-        };
+    const where = { userId };
+    if (isRead !== undefined) {
+        where.isRead = isRead === 'true';
     }
 
-    if (filter === 'unread') {
-        query.isRead = false;
-    }
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
-
-    // بقیه کد بدون تغییر ...
-    const notifications = await Notification.find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(Number(limit));
-
-    const totalCount = await Notification.countDocuments(query);
-    const totalCountActivity = await Notification.countDocuments({
-        userId: userId,
-        type: "activity_status",
-        isRead:false
-
-    });
-    
-    // تعداد نوتیفیکیشن‌های مربوط به پاداش‌ها
-    const totalCountReward = await Notification.countDocuments({
-        userId: userId,
-        type: "reward_status",
-        isRead:false
-    });
-
+    const [totalCount, notifications] = await Promise.all([
+        prisma.notification.count({ where }),
+        prisma.notification.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limitNum
+        })
+    ]);
 
     res.status(200).json({
         success: true,
-        totalCountActivity,
-        totalCountReward,
+        results: notifications.length,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        currentPage: Number(page),
-        data: notifications,
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
+        data: notifications
     });
 });
 
-/**
- * @desc    Mark notifications as read
- * @route   PATCH /api/notifications/mark-as-read
- * @access  Private (Student)
- */
-export const markNotificationsAsRead = catchAsync(async (req, res, next) => {
+export const markAsRead = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
     const userId = req.userId;
-    const { notificationIds } = req.body; // an array of IDs to mark as read
 
-    if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0) {
-        // If no IDs are provided, mark all unread as read
-        await Notification.updateMany(
-            { userId, isRead: false },
-            { $set: { isRead: true } }
-        );
-        return res.status(200).json({ success: true, message: "تمام اعلان‌ها خوانده شد." });
+    const notification = await prisma.notification.findFirst({
+        where: { id, userId }
+    });
+
+    if (!notification) {
+        return next(new HandleERROR('اعلان یافت نشد.', 404));
     }
 
-    // Mark specific notifications as read
-    const result = await Notification.updateMany(
-        { _id: { $in: notificationIds }, userId }, // Security: ensure user owns the notifications
-        { $set: { isRead: true } }
-    );
+    const updated = await prisma.notification.update({
+        where: { id },
+        data: { isRead: true }
+    });
 
     res.status(200).json({
         success: true,
-        message: `${result.nModified} اعلان خوانده شد.`
+        message: 'اعلان با موفقیت به عنوان خوانده شده علامت‌گذاری شد.',
+        data: updated
     });
 });
-
-// این تابع برای اضافه شدن به کنترلر داشبورد است اما منطقش اینجا نوشته شده
-// export const getUnreadNotificationCount = catchAsync(async (userId) => {
-//     return await Notification.countDocuments({ userId, isRead: false });
-// });
-
 
 export const markAllAsRead = catchAsync(async (req, res, next) => {
-    const userId = req.userId; // از میدل‌ور احراز هویت (isLogin) می‌آید
+    const userId = req.userId;
 
-    // تمام اعلان‌های کاربر که isRead: false هستند را پیدا کرده و isRead: true را برایشان ست می‌کنیم
-    await Notification.updateMany(
-        { userId: userId, isRead: false }, // شرط: اعلان‌های کاربر فعلی که خوانده نشده‌اند
-        { $set: { isRead: true } }        // عملیات: isRead را به true تغییر بده
-    );
+    await prisma.notification.updateMany({
+        where: { userId, isRead: false },
+        data: { isRead: true }
+    });
 
     res.status(200).json({
         success: true,
-        message: 'تمام اعلان‌ها به عنوان خوانده شده علامت‌گذاری شدند.'
+        message: 'تمامی اعلان‌ها به عنوان خوانده شده علامت‌گذاری شدند.'
     });
 });
 
-export const markOneAsRead = catchAsync(async (req, res, next) => {
-    const userId = req.userId; // از میدل‌ور isLogin
-    const { id: notificationId } = req.params; // آیدی اعلان را از پارامتر URL می‌گیریم
+export const getUnreadCount = catchAsync(async (req, res, next) => {
+    const userId = req.userId;
 
-    if (!notificationId) {
-        return res.status(400).json({ success: false, message: "شناسه اعلان ارسال نشده است." });
-    }
-
-    // اعلان را فقط در صورتی آپدیت می‌کنیم که متعلق به کاربر لاگین شده باشد
-    // این یک اقدام امنیتی مهم است
-    const result = await Notification.updateOne(
-        { _id: notificationId, userId: userId }, // شرط: هم آیدی اعلان و هم آیدی کاربر باید مطابقت داشته باشد
-        { $set: { isRead: true } }
-    );
-
-    // اگر هیچ داکیومنتی آپدیت نشد، یعنی اعلان متعلق به این کاربر نبوده یا وجود نداشته
-    if (result.nModified === 0) {
-        // می‌توانید اینجا خطا برنگردانید و فقط یک پیام موفقیت با 0 بدهید
-        // چون فرانت‌اند از قبل UI را آپدیت کرده است.
-    }
+    const unreadCount = await prisma.notification.count({
+        where: { userId, isRead: false }
+    });
 
     res.status(200).json({
         success: true,
-        message: 'اعلان خوانده شد.'
+        unreadCount
     });
 });
+
+export const markOneAsRead = markAsRead;
+export const markNotificationsAsRead = markAllAsRead;

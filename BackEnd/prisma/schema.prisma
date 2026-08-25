@@ -1,0 +1,157 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  admin
+  superAdmin
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  idCode       String   @unique
+  role         Role     @default(student)
+  password     String
+  image        String?
+  fieldOfStudy String?  // 'تولید و توسعه پایگاه اینترنتی', 'تولیدکننده چندرسانه‌ای'
+  grade        String?  // 'دهم', 'یازدهم', 'دوازدهم'
+  class        Int?
+  score        Float    @default(0)
+  token        Float    @default(0)
+  rankInSchool Int?
+  rankInGrade  Int?
+  rankInClass  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentActivities StudentActivity[]
+  adminActivities   AdminActivity[]
+  studentRewards    StudentReward[]
+  notifications     Notification[]
+
+  @@index([idCode])
+  @@index([role, score(sort: Desc)])
+  @@index([grade, class])
+}
+
+model Activity {
+  id              String   @id @default(uuid())
+  parent          String   // 'موارد کسر امتیاز', 'فعالیت‌های آموزشی', 'فعالیت‌های شغلی', 'فعالیت‌های داوطلبانه و توسعه فردی'
+  order           Int      @default(0)
+  color           String?
+  icon            String?
+  hide            Boolean  @default(false)
+  name            String
+  description     String?
+  valueInput      Json     // { type, label, required, numberMin, numberMax }
+  scoreDefinition Json     // { inputType, multiplier, enumOptions, min, max }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  studentActivities StudentActivity[]
+  adminActivities   AdminActivity[]
+
+  @@unique([parent, name])
+  @@index([parent, order])
+}
+
+model Reward {
+  id          String   @id @default(uuid())
+  parent      String   // 'پاداش‌های عمومی', 'پاداش‌های اختصاصی', 'پاداش نیکوکارانه'
+  name        String
+  description String?
+  minToken    Int
+  maxToken    Int
+  icon        String?
+  color       String?
+  hide        String?  @default("false")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studentRewards StudentReward[]
+
+  @@index([parent])
+}
+
+model StudentActivity {
+  id           String   @id @default(uuid())
+  userId       String
+  activityId   String
+  details      String?
+  status       String   @default("pending") // 'pending', 'approved', 'rejected'
+  scoreAwarded Float    @default(0)
+  adminComment String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model AdminActivity {
+  id           String   @id @default(uuid())
+  userId       String
+  activityId   String
+  details      String
+  scoreAwarded Float    @default(0)
+  type         String?  // 'گروهی', 'فردی', 'گروهی-اکسل'
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model StudentReward {
+  id        String   @id @default(uuid())
+  userId    String
+  rewardId  String
+  token     Int
+  status    String   @default("pending") // 'pending', 'approved', 'rejected'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  userId       String
+  title        String
+  message      String
+  type         String
+  relatedLink  String?
+  relatedDocId String?
+  isRead       Boolean  @default(false)
+  icon         String   @default("BsChatDotsFill")
+  iconBgColor  String   @default("bg-teal-500")
+  activityId   String?
+  rewardId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+}

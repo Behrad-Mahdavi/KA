@@ -60,8 +60,8 @@ function RewardExcelUpload({ Open }) {
     try {
       setLoading(true);
       setResult(null); // پاک کردن نتایج قبلی قبل از ارسال جدید
-      // *** تغییر URL برای آپلود پاداش‌ها ***
-      const response = await axios.post('http://localhost:5000/api/exel/reward', formData, { // یا هر URL دیگری که برای rewards تنظیم کرده‌اید
+      const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5005/api/';
+      const response = await axios.post(`${baseUrl}exel/reward`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('token')}`, // اطمینان از وجود توکن

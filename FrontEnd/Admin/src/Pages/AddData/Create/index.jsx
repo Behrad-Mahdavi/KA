@@ -70,9 +70,9 @@ export default function CreateNewData({ Open }) {
                 const categoriesPromise = fetchData('admin-activity/distinct/parents', { headers: { authorization: `Bearer ${token}` } }); // این روت باید لیست parent ها را برگرداند
 
                 const [userStats, adminCount, categoriesRes] = await Promise.all([userStatsPromise, adminActivityCountPromise, categoriesPromise]);
-                if (userStats.success) setTotalUserScore(userStats.data.totalScore || 0); else setErrorStats(p => (p ? p + '; ' : '') + (userStats.message || 'خطا آمار امتیازات'));
-                if (adminCount.success) setTotalAdminActivitiesCount(adminCount.data.count || 0); else setErrorStats(p => (p ? p + '; ' : '') + (adminCount.message || 'خطا آمار فعالیت‌ها'));
-                if (categoriesRes.success) setActivityCategories(categoriesRes.data || []); else { setErrorStats(p => (p ? p + '; ' : '') + (categoriesRes.message || 'خطا دسته‌بندی‌ها')); setActivityCategories([]); }
+                if (userStats?.success) setTotalUserScore(userStats.data?.totalScore ?? userStats.totalScore ?? 0); else setErrorStats(p => (p ? p + '; ' : '') + (userStats?.message || 'خطا آمار امتیازات'));
+                if (adminCount?.success) setTotalAdminActivitiesCount(adminCount.data?.count ?? adminCount.count ?? 0); else setErrorStats(p => (p ? p + '; ' : '') + (adminCount?.message || 'خطا آمار فعالیت‌ها'));
+                if (categoriesRes?.success) setActivityCategories(categoriesRes.data || []); else { setErrorStats(p => (p ? p + '; ' : '') + (categoriesRes?.message || 'خطا دسته‌بندی‌ها')); setActivityCategories([]); }
             } catch (err) { setErrorStats(err.message || 'خطای کلی بارگذاری'); }
             finally { setLoadingStats(false); }
         };
@@ -127,7 +127,7 @@ export default function CreateNewData({ Open }) {
 
     // ۴. ست کردن selectedActivityFullDetails و امتیاز اولیه
     const handleActivityTitleChange = useCallback((selectedActivityId) => {
-        const foundActivity = availableActivityTitles.find(act => act._id === selectedActivityId);
+        const foundActivity = availableActivityTitles.find(act => (act._id === selectedActivityId || act.id === selectedActivityId));
         setSelectedActivityFullDetails(foundActivity || null);
         let initialScore = ''; let initialDetails = '';
         if (foundActivity?.scoreDefinition?.inputType === 'fixed_from_enum_single' &&
@@ -392,7 +392,7 @@ const handleSubmitGroup = async (e) => {
                                 <div className="flex items-center justify-between gap-x-3 bg-gray-50 p-3 rounded-md border border-gray-200 relative">
                                     <select id="studentId" name="studentId" value={individualFormData.studentId} onChange={handleIndividualFormChange} className="flex-grow appearance-none bg-transparent border-0 focus:outline-none focus:ring-0 pr-8 pl-3 py-2 text-right text-sm cursor-pointer" required disabled={!individualFormData.classNum || loadingStudents || (studentsInClass.length === 0 && !errorStudents)}>
                                         <option value="">{loadingStudents ? "بارگذاری..." : errorStudents ? errorStudents : !individualFormData.classNum ? "ابتدا کلاس" : (studentsInClass.length === 0 && !errorStudents && individualFormData.classNum) ? "دانش‌آموزی نیست" : "انتخاب دانش‌آموز..."}</option>
-                                        {studentsInClass.map(s => <option key={s._id} value={s._id}>{s.fullName}</option>)}
+                                        {studentsInClass.map(s => <option key={s.id || s._id} value={s.id || s._id}>{s.fullName}</option>)}
                                     </select>
                                     <IoIosArrowDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
                                     <label htmlFor="studentId" className="flex-shrink-0 font-medium text-gray-700 text-sm whitespace-nowrap">دانش‌آموز <span className="text-red-500">*</span></label>
@@ -414,7 +414,7 @@ const handleSubmitGroup = async (e) => {
                                 <div className="flex items-center justify-between gap-x-3 bg-gray-50 p-3 rounded-md border border-gray-200 relative">
                                     <select id="activityTitle" name="activityTitle" value={individualFormData.activityTitle} onChange={(e) => { handleIndividualFormChange(e); handleActivityTitleChange(e.target.value); }} className="flex-grow appearance-none bg-transparent border-0 focus:outline-none focus:ring-0 pr-8 pl-3 py-2 text-right text-sm cursor-pointer" required disabled={!individualFormData.activityCategory || loadingActivityTitles || (availableActivityTitles.length === 0 && !errorActivityTitles)}>
                                         <option value="">{loadingActivityTitles ? "بارگذاری..." : errorActivityTitles ? errorActivityTitles : !individualFormData.activityCategory ? "ابتدا دسته‌بندی" : (availableActivityTitles.length === 0 && !errorActivityTitles && individualFormData.activityCategory) ? "عنوانی نیست" : "انتخاب عنوان فعالیت..."}</option>
-                                        {availableActivityTitles.map(act => <option key={act._id} value={act._id}>{act.name}</option>)}
+                                        {availableActivityTitles.map(act => <option key={act.id || act._id} value={act.id || act._id}>{act.name}</option>)}
                                     </select>
                                     <IoIosArrowDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
                                     <label htmlFor="activityTitle" className="flex-shrink-0 font-medium text-gray-700 text-sm whitespace-nowrap">عنوان فعالیت <span className="text-red-500">*</span></label>

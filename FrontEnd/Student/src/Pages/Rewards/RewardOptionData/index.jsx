@@ -226,7 +226,8 @@ export default function RequestRewardPage({ Open }) {
               const IconComponent = Iconsax[iconName] || Iconsax.Gift;
 
               return {
-                id: reward._id,
+                id: reward.id || reward._id,
+                _id: reward.id || reward._id,
                 title: reward.name,
                 amount: (reward.minToken && reward.maxToken) ?
                   `${reward.minToken.toLocaleString('fa-IR')} - ${reward.maxToken.toLocaleString('fa-IR')} توکن` :
@@ -235,7 +236,7 @@ export default function RequestRewardPage({ Open }) {
                 parent: reward.parent,
                 minToken: reward.minToken,
                 maxToken: reward.maxToken,
-                color: `#${reward.color}` || '#59BBAF',
+                color: reward.color?.startsWith('#') ? reward.color : `#${reward.color || '59BBAF'}`,
                 iconName: reward.icon || "Gift" // ✅ فقط اسم آیکون — نه کامپوننت
               };
             });
