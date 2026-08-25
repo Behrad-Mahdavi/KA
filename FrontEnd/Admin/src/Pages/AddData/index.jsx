@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import fetchData from '../../Utils/fetchData'; // مسیر صحیح به ابزار fetchData شما
 import union from '../../assets/images/Union4.png';
-import frame7 from '../../assets/images/frame7.png';
-import frame72 from '../../assets/images/frame72.png';
+import frame7 from '../../assets/images/Frame7.png';
+import frame72 from '../../assets/images/Frame72.png';
 
 import { BiSolidSchool } from "react-icons/bi";
 import { IoNotificationsOutline } from "react-icons/io5";

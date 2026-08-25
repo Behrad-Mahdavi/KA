@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import union from '../../assets/images/Union4.png';
-import frame7 from '../../assets/images/frame7.png';
-import frame72 from '../../assets/images/frame72.png';
+import frame7 from '../../assets/images/Frame7.png';
+import frame72 from '../../assets/images/Frame72.png';
 import { BiSolidSchool } from "react-icons/bi";
 import { IoNotificationsOutline } from "react-icons/io5";
 import { IoDocumentTextOutline } from "react-icons/io5";

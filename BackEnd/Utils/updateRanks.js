@@ -1,8 +1,8 @@
 import prisma from './prisma.js';
 
-export async function updateStudentRankings() {
+export async function updateStudentRankings(client = prisma) {
   try {
-    await prisma.$executeRaw`
+    await client.$executeRaw`
       WITH ranked AS (
         SELECT 
           id,

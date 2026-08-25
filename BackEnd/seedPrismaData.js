@@ -1,16 +1,40 @@
 import bcryptjs from 'bcryptjs';
 import dotenv from 'dotenv';
 import { __dirname } from './app.js';
-import prisma from './Utils/prisma.js';
+import { PrismaClient } from '@prisma/client';
 import updateStudentRankings from './Utils/updateRanks.js';
 
-dotenv.configDotenv({ path: __dirname + '/config.env' });
-dotenv.config();
+if (!process.env.DATABASE_URL) {
+  dotenv.configDotenv({ path: __dirname + '/config.env' });
+  dotenv.config();
+}
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+});
 
 const seedPostgres = async () => {
   try {
-    console.log('Connecting to PostgreSQL...');
-    await prisma.$connect();
+    console.log('Connecting to PostgreSQL with URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@') : 'not set');
+    
+    // Attempt connection with retry for serverless cold-start
+    let connected = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await prisma.$connect();
+        connected = true;
+        console.log(`Connected to database on attempt ${attempt}.`);
+        break;
+      } catch (connErr) {
+        console.log(`Attempt ${attempt} failed (${connErr.message}). Retrying in 2s...`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+    if (!connected) throw new Error("Could not connect after 5 attempts.");
 
     // 1. پاکسازی داده‌های قبلی
     await prisma.notification.deleteMany({});
@@ -224,9 +248,7 @@ const seedPostgres = async () => {
       }
     ];
 
-    for (const rew of rewardsData) {
-      await prisma.reward.create({ data: rew });
-    }
+    await prisma.reward.createMany({ data: rewardsData });
     console.log(`Inserted ${rewardsData.length} rewards.`);
 
     // 4. درج کاربران (Users)
@@ -356,9 +378,7 @@ const seedPostgres = async () => {
       }
     ];
 
-    for (const u of usersData) {
-      await prisma.user.create({ data: u });
-    }
+    await prisma.user.createMany({ data: usersData });
     console.log(`Inserted ${usersData.length} users.`);
 
     // 5. واکشی شناسه‌ها برای ثبت فعالیت‌ها و پاداش‌ها
@@ -516,8 +536,8 @@ const seedPostgres = async () => {
     });
     console.log('Inserted notifications.');
 
-    // 8. به‌روزرسانی رتبه‌بندی‌ها با SQL Window Functions
-    await updateStudentRankings();
+    // 8. محاسبه رتبه‌بندی دانش‌آموزان
+    await updateStudentRankings(prisma);
     console.log('Updated student rankings successfully via PostgreSQL Window Functions!');
 
     console.log('🎉 PostgreSQL database seeding completed successfully!');

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import frame21 from '../../assets/images/Frame21.png'; // مسیر صحیح تصاویر
 import frame22 from '../../assets/images/Frame22.png'; // مسیر صحیح تصاویر
-import frame200 from '../../assets/images/frame200.png'
+import frame200 from '../../assets/images/Frame200.png'
 import { BiSolidSchool } from "react-icons/bi";
 // آیکون FaVenus برای تطابق با نماد ♀ در تصویر جایگزین FaMedal شد
 import { FaVenus, FaPlus, FaMedal } from "react-icons/fa";
