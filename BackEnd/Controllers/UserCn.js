@@ -97,19 +97,27 @@ export const findStudentByDetails = catchAsync(async (req, res, next) => {
 
 export const getTopStudentsByAllGrades = catchAsync(async (req, res, next) => {
   const limitPerGrade = parseInt(req.query.limit, 10) || 3;
+  const { branch } = req.query;
   const grades = ['دهم', 'یازدهم', 'دوازدهم'];
 
   const results = await Promise.all(
     grades.map(async (grade) => {
+      const where = { role: 'student', grade };
+      if (branch && branch !== 'all') where.branch = branch;
+
       const topStudents = await prisma.user.findMany({
-        where: { role: 'student', grade },
+        where,
         select: {
           id: true,
           fullName: true,
+          gender: true,
+          branch: true,
           grade: true,
           class: true,
           score: true,
+          token: true,
           rankInGrade: true,
+          rankInBranch: true,
           rankInSchool: true
         },
         orderBy: { score: 'desc' },
@@ -128,23 +136,27 @@ export const getTopStudentsByAllGrades = catchAsync(async (req, res, next) => {
 });
 
 export const getStudentsByGradeAndClass = catchAsync(async (req, res, next) => {
-  const { grade, class: classId, classNum } = req.query;
+  const { grade, class: classId, classNum, branch } = req.query;
   const targetClass = classId || classNum;
   const where = { role: 'student' };
-  if (grade) where.grade = grade;
-  if (targetClass) where.class = parseInt(targetClass, 10);
+  if (grade && grade !== 'all') where.grade = grade;
+  if (targetClass && targetClass !== 'all') where.class = parseInt(targetClass, 10);
+  if (branch && branch !== 'all') where.branch = branch;
 
   const students = await prisma.user.findMany({
     where,
     select: {
       id: true,
       fullName: true,
+      gender: true,
+      branch: true,
       grade: true,
       class: true,
       score: true,
       token: true,
       rankInClass: true,
       rankInGrade: true,
+      rankInBranch: true,
       rankInSchool: true
     },
     orderBy: { score: 'desc' }
@@ -158,16 +170,23 @@ export const getStudentsByGradeAndClass = catchAsync(async (req, res, next) => {
 });
 
 export const getOverallRankingTable = catchAsync(async (req, res, next) => {
+  const { branch } = req.query;
+  const where = { role: 'student' };
+  if (branch && branch !== 'all') where.branch = branch;
+
   const students = await prisma.user.findMany({
-    where: { role: 'student' },
+    where,
     select: {
       id: true,
       fullName: true,
+      gender: true,
+      branch: true,
       grade: true,
       class: true,
       score: true,
       token: true,
       rankInSchool: true,
+      rankInBranch: true,
       rankInGrade: true,
       rankInClass: true,
       studentActivities: {
@@ -203,12 +222,16 @@ export const getOverallRankingTable = catchAsync(async (req, res, next) => {
       userId: u.id,
       name: u.fullName,
       fullName: u.fullName,
+      branch: u.branch || 'پسرانه',
+      gender: u.gender || 'male',
       code: u.class || 'N/A',
       class: u.class || 'N/A',
       score: u.score,
-      token: u.token,
+      token: Math.floor(u.score * 0.95),
+      spendableTokens: Math.floor(u.score * 0.95),
       rank: u.rankInSchool || idx + 1,
       rankInSchool: u.rankInSchool || idx + 1,
+      rankInBranch: u.rankInBranch || idx + 1,
       rankInGrade: u.rankInGrade,
       rankInClass: u.rankInClass,
       grade: u.grade,
@@ -223,24 +246,28 @@ export const getOverallRankingTable = catchAsync(async (req, res, next) => {
 });
 
 export const getSameGradeRankingTable = catchAsync(async (req, res, next) => {
-  let { grade } = req.query;
+  let { grade, branch } = req.query;
   if (!grade && req.userId) {
     const me = await prisma.user.findUnique({ where: { id: req.userId } });
     if (me?.grade) grade = me.grade;
   }
   const where = { role: 'student' };
-  if (grade) where.grade = grade;
+  if (grade && grade !== 'all') where.grade = grade;
+  if (branch && branch !== 'all') where.branch = branch;
 
   const students = await prisma.user.findMany({
     where,
     select: {
       id: true,
       fullName: true,
+      gender: true,
+      branch: true,
       grade: true,
       class: true,
       score: true,
       token: true,
       rankInGrade: true,
+      rankInBranch: true,
       rankInSchool: true,
       studentActivities: {
         where: { status: 'approved' },
@@ -275,12 +302,16 @@ export const getSameGradeRankingTable = catchAsync(async (req, res, next) => {
       userId: u.id,
       name: u.fullName,
       fullName: u.fullName,
+      branch: u.branch || 'پسرانه',
+      gender: u.gender || 'male',
       code: u.class || 'N/A',
       class: u.class || 'N/A',
       score: u.score,
-      token: u.token,
+      token: Math.floor(u.score * 0.95),
+      spendableTokens: Math.floor(u.score * 0.95),
       rank: u.rankInGrade || idx + 1,
       rankInGrade: u.rankInGrade || idx + 1,
+      rankInBranch: u.rankInBranch || idx + 1,
       rankInSchool: u.rankInSchool || idx + 1,
       grade: u.grade,
       educationalActivities: educational,

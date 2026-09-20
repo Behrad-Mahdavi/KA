@@ -22,6 +22,8 @@ model User {
   role         Role     @default(student)
   password     String
   image        String?
+  gender       String?  @default("male") // 'male' (پسرانه), 'female' (دخترانه)
+  branch       String?  @default("پسرانه") // 'پسرانه', 'دخترانه'
   fieldOfStudy String?  // 'تولید و توسعه پایگاه اینترنتی', 'تولیدکننده چندرسانه‌ای'
   grade        String?  // 'دهم', 'یازدهم', 'دوازدهم'
   class        Int?
@@ -30,6 +32,7 @@ model User {
   rankInSchool Int?
   rankInGrade  Int?
   rankInClass  Int?
+  rankInBranch Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -41,6 +44,7 @@ model User {
   @@index([idCode])
   @@index([role, score(sort: Desc)])
   @@index([grade, class])
+  @@index([branch])
 }
 
 model Activity {

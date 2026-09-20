@@ -21,6 +21,7 @@ import myActivitiesRouter from "./Routes/myActivities.js";
 import adminReviewRouter from "./Routes/adminReview.js";
 import reportRouter from "./Routes/Report.js";
 import notifRouter from "./Routes/Notification.js";
+import leaderboardRouter from "./Routes/Leaderboard.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +82,8 @@ app.use('/api/my-activities', myActivitiesRouter);
 app.use('/api/admin-review', adminReviewRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/notifications', notifRouter);
+app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/leaderboards', leaderboardRouter);
 
 
 app.use("*", (req, res, next) => { 
