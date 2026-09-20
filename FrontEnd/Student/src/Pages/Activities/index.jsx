@@ -41,14 +41,16 @@ export default function Activities() {
   const fetchStats = async () => {
     if (!token) return;
     try {
-      const res = await fetchData('my-activities/stats', {
+      const res = await fetchData('my-activities/my-stats', {
         headers: { authorization: `Bearer ${token}` }
       });
       if (res.success && res.data) {
         setStats({
-          approvedStudentActivities: res.data.approvedCount || 0,
-          pendingStudentActivities: res.data.pendingCount || 0,
-          totalAllActivities: (res.data.approvedCount || 0) + (res.data.pendingCount || 0) + (res.data.adminTotal || 0),
+          approvedStudentActivities: res.data.approvedStudentActivities ?? res.data.approvedCount ?? 0,
+          pendingStudentActivities: res.data.pendingStudentActivities ?? res.data.pendingCount ?? 0,
+          totalAllActivities: res.data.totalAllActivities ?? (
+            (res.data.approvedCount || 0) + (res.data.pendingCount || 0) + (res.data.adminTotal || 0)
+          ),
         });
       }
     } catch (err) {
@@ -62,7 +64,7 @@ export default function Activities() {
     if (!token) return;
     setLoadingList(true);
     try {
-      let query = `my-activities?page=${page}&limit=10`;
+      let query = `my-activities/my-list?page=${page}&limit=10`;
       if (filterStatus === 'approved') query += `&status=approved&entryType=student`;
       else if (filterStatus === 'pending') query += `&status=pending&entryType=student`;
       else if (filterStatus === 'admin') query += `&entryType=admin`;
