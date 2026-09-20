@@ -158,6 +158,9 @@ export const getStudentDashboardData = catchAsync(async (req, res, next) => {
             userRankInSchool,
             userRankInGrade,
             userRankInClass,
+            rankInSchool: userRankInSchool,
+            rankInGrade: userRankInGrade,
+            rankInClass: userRankInClass,
             rankingTableData
         }
     });

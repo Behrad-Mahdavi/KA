@@ -93,10 +93,11 @@ export default function StudentHome() {
   const availableTokens = dashboardData?.availableTokens ?? dashboardData?.spendableTokens ?? Math.floor(Number(totalUserScore) * 0.95);
   const totalTokens = dashboardData?.totalTokens ?? totalUserScore;
 
+  const rankInSchool = dashboardData?.rankInSchool ?? dashboardData?.userRankInSchool ?? user?.rankInSchool;
+  const rankInGrade = dashboardData?.rankInGrade ?? dashboardData?.userRankInGrade ?? user?.rankInGrade;
+  const rankInClass = dashboardData?.rankInClass ?? dashboardData?.userRankInClass ?? user?.rankInClass;
+
   const {
-    rankInSchool,
-    rankInGrade,
-    rankInClass,
     activitySummary = [],
     higherNeighbors = [],
     lowerNeighbors = [],
@@ -161,14 +162,14 @@ export default function StudentHome() {
         />
         <StatCard
           title="رتبه در هنرستان"
-          value={rankInSchool ? `رتبه ${rankInSchool}` : 'محاسبه...'}
+          value={rankInSchool ? `رتبه ${toPersianDigits(rankInSchool)}` : 'رتبه ۱'}
           subtitle="میان تمام دانش‌آموزان"
           icon={Trophy}
           theme="ecosystem"
         />
         <StatCard
           title="رتبه در کلاس"
-          value={rankInClass ? `رتبه ${rankInClass}` : 'محاسبه...'}
+          value={rankInClass ? `رتبه ${toPersianDigits(rankInClass)}` : (rankInGrade ? `رتبه ${toPersianDigits(rankInGrade)} پایه` : 'رتبه ۱')}
           subtitle={`پایه ${user?.grade || ''} • کلاس ${toPersianDigits(user?.class || '')}`}
           icon={Users}
           theme="club"
