@@ -1,10 +1,9 @@
 // seedActivities.js
-import mongoose from 'mongoose';
+import prisma from './Utils/prisma.js';
 import dotenv from 'dotenv';
-import Activity from './Models/ActivityMd.js'; // مطمئن شوید مسیر به مدل شما صحیح است
-import { __dirname } from "./app.js"; // اگر از __dirname به این شکل استفاده می‌کنید
+import { __dirname } from "./app.js";
 
-// اگر فایل .env شما در ریشه پروژه است، dotenv.config() کافی است.
+dotenv.configDotenv({ path: __dirname + '/config.env' });
 dotenv.config();
 
 const activitiesData = [
@@ -261,26 +260,35 @@ const activitiesData = [
     }
 ];
 
-dotenv.configDotenv({path:__dirname+'/config.env'})
-    
 const seedDB = async () => {
     try {
-         mongoose.connect(process.env.DATA_BASE).then(()=>{
-              console.log('database is connect')
-          }).catch(err=>console.log(err))
+        console.log('Connecting to database...');
+        await prisma.$connect();
+        console.log('Database connected successfully via Prisma.');
 
-        await Activity.deleteMany({}); // پاک کردن تمام فعالیت های موجود
+        await prisma.activity.deleteMany({});
         console.log('Old activities deleted.');
 
-        await Activity.insertMany(activitiesData);
-        console.log('New activities seeded successfully!');
+        for (const act of activitiesData) {
+            await prisma.activity.create({
+                data: {
+                    parent: act.parent,
+                    name: act.name,
+                    order: act.order || 0,
+                    description: act.description,
+                    valueInput: act.valueInput,
+                    scoreDefinition: act.scoreDefinition
+                }
+            });
+        }
+        console.log(`✅ ${activitiesData.length} activities seeded successfully into PostgreSQL via Prisma!`);
 
     } catch (err) {
         console.error('Error seeding database:', err);
     } finally {
-        await mongoose.disconnect();
-        console.log('MongoDB Disconnected.');
+        await prisma.$disconnect();
+        console.log('Database Disconnected.');
     }
 };
 
-seedDB()
+seedDB();

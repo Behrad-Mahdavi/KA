@@ -17,10 +17,11 @@ activityRouter.route('/').post(isSuperAdmin, createActivity).get(getAllActivitie
 
 // --- روت جدید ---
 // GET /api/activity/by-parent?parent=فعالیت‌های آموزشی
-activityRouter.get('/by-parent', /* protect, */ getActivitiesByParent); // <--- روت جدید
-// در صورت نیاز، میدلور protect را برای احراز هویت (مثلاً ادمین) فعال کنید
+activityRouter.get('/by-parent', getActivitiesByParent);
+activityRouter.get('/by-parent/:parentCategory', getActivitiesByParent);
+activityRouter.get('/definitions/by-parent/:parentCategory', getActivitiesByParent);
 
-activityRouter.get('/find-by-details', findActivityByDetails); // این روت هنوز ممکن است در جاهای دیگر استفاده شود یا برای جستجوی دستی
+activityRouter.get('/find-by-details', findActivityByDetails);
 activityRouter.route('/:id').get(getOneActivity).delete(isSuperAdmin, removeActivity) // getOneActivity ممکن است نیاز به protect داشته باشد
 
 export default activityRouter

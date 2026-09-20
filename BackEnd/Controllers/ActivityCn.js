@@ -84,10 +84,10 @@ export const findActivityByDetails = catchAsync(async (req, res, next) => {
 });
 
 export const getActivitiesByParent = catchAsync(async (req, res, next) => {
-    const { parent: parentCategory } = req.query;
+    const parentCategory = req.query.parent || req.params.parentCategory || req.params.parent;
 
     if (!parentCategory) {
-        return res.status(400).json({ success: false, message: 'دسته بندی والد فعالیت (پارامتر parent در query string) الزامی است.' });
+        return res.status(400).json({ success: false, message: 'دسته بندی والد فعالیت الزامی است.' });
     }
 
     const activities = await prisma.activity.findMany({
@@ -98,8 +98,10 @@ export const getActivitiesByParent = catchAsync(async (req, res, next) => {
         ]
     });
 
+    const formatted = activities.map(a => ({ ...a, _id: a.id }));
+
     res.status(200).json({
         success: true,
-        data: activities,
+        data: formatted,
     });
 });
