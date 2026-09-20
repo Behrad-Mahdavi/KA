@@ -14,7 +14,29 @@ import { cn, toPersianDigits } from '../Utils/utils';
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const [user, setUser] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  React.useEffect(() => {
+    const handleUserUpdate = () => {
+      try {
+        setUser(JSON.parse(localStorage.getItem("user") || "null"));
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('userUpdated', handleUserUpdate);
+    window.addEventListener('storage', handleUserUpdate);
+    return () => {
+      window.removeEventListener('userUpdated', handleUserUpdate);
+      window.removeEventListener('storage', handleUserUpdate);
+    };
+  }, []);
 
   const menuItems = [
     { to: '/', label: 'داشبورد', icon: LayoutDashboard },
@@ -115,16 +137,16 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span>امتیاز</span>
               </div>
               <span className="text-sm font-black text-[#202A5A] dark:text-white">
-                {toPersianDigits(user.score || 0)}
+                {toPersianDigits(user?.score || 0)}
               </span>
             </div>
             <div className="p-2 rounded-xl bg-white dark:bg-[#1C2536] border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 mb-0.5">
                 <Coins className="w-3 h-3 text-amber-500" />
-                <span>توکن</span>
+                <span>توکن (۹۵٪)</span>
               </div>
               <span className="text-sm font-black text-amber-600 dark:text-amber-400">
-                {toPersianDigits(user.token || 0)}
+                {toPersianDigits(user?.token ?? Math.floor((user?.score || 0) * 0.95))}
               </span>
             </div>
           </div>

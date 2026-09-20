@@ -41,6 +41,17 @@ export default function StudentHome() {
         });
         if (response?.success && response?.data) {
           setDashboardData(response.data);
+          try {
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            if (storedUser && typeof storedUser === 'object') {
+              storedUser.score = response.data.totalUserScore ?? response.data.totalScore ?? storedUser.score;
+              storedUser.token = response.data.availableTokens ?? response.data.spendableTokens ?? Math.floor((storedUser.score || 0) * 0.95);
+              localStorage.setItem('user', JSON.stringify(storedUser));
+              window.dispatchEvent(new Event('userUpdated'));
+            }
+          } catch (e) {
+            console.error('Error syncing user score/tokens:', e);
+          }
         } else {
           setError(response?.message || 'خطا در دریافت اطلاعات داشبورد.');
         }
@@ -78,9 +89,11 @@ export default function StudentHome() {
     );
   }
 
+  const totalUserScore = dashboardData?.totalUserScore ?? dashboardData?.totalScore ?? user?.score ?? 0;
+  const availableTokens = dashboardData?.availableTokens ?? dashboardData?.spendableTokens ?? Math.floor(Number(totalUserScore) * 0.95);
+  const totalTokens = dashboardData?.totalTokens ?? totalUserScore;
+
   const {
-    totalUserScore = 0,
-    totalTokens = 0,
     rankInSchool,
     rankInGrade,
     rankInClass,
@@ -139,12 +152,12 @@ export default function StudentHome() {
           trend={{ value: "فعال", isPositive: true }}
         />
         <StatCard
-          title="موجودی توکن‌ها"
-          value={totalTokens}
-          subtitle="آماده برای خرج در ویترین"
+          title="توکن‌های قابل استفاده"
+          value={availableTokens}
+          subtitle="۹۵٪ توکن‌ها قابل استفاده هستند"
           icon={Coins}
           theme="college"
-          trend={{ value: "تبدیل ۹۵٪", isPositive: true }}
+          trend={{ value: "۹۵٪ قابل خرج", isPositive: true }}
         />
         <StatCard
           title="رتبه در هنرستان"

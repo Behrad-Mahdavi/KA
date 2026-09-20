@@ -148,9 +148,12 @@ export const getStudentDashboardData = catchAsync(async (req, res, next) => {
                 unreadNotificationsCount: 0
             },
             totalUserScore: currentUserData.score,
+            totalScore: currentUserData.score,
+            totalTokens: currentUserData.score,
+            availableTokens: currentUserData.token,
+            spendableTokens: currentUserData.token,
             activitySummary,
             paidRewardsTokenValue: paidRewardsResult._sum.token || 0,
-            availableTokens: currentUserData.token,
             topStudentsInMyGrade,
             userRankInSchool,
             userRankInGrade,
