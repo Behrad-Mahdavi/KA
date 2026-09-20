@@ -69,17 +69,19 @@ export default function Login() {
       <div className="w-full max-w-md bg-white dark:bg-[#1E2640] rounded-2xl border-2 border-[#202A5A] dark:border-[#59BBAF]/30 p-6 sm:p-8 rokad-shadow space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-[#202A5A] text-[#E0195B] border-2 border-[#202A5A] flex items-center justify-center mx-auto rokad-shadow">
-            <ShieldAlert className="w-8 h-8" />
-          </div>
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#E0195B] text-white border border-[#E0195B]/30">
+          <img
+            src="/KALogoLoginPage.png"
+            alt="پلتفرم کا"
+            className="h-16 mx-auto object-contain drop-shadow-xs"
+          />
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#202A5A] text-[#59BBAF] border border-[#59BBAF]/30">
             پرتال نظارت و مدیریت عالی سیستم
           </span>
           <h1 className="text-2xl font-black text-[#202A5A] dark:text-white">
             ورود راهبر ارشد
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            مدیریت پایه‌ای، ثبت‌نام انبوه و تنظیمات کلان پلتفرم رُکاد
+            مدیریت پایه‌ای، ثبت‌نام انبوه و تنظیمات کلان سامانه
           </p>
         </div>
 

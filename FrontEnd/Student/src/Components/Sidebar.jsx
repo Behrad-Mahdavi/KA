@@ -35,12 +35,14 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Brand & School Logo */}
       <div className="h-16 sm:h-20 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#59BBAF] to-[#438C83] flex items-center justify-center text-white shadow-[2px_2px_0_#1F413D]">
-            <Sparkles className="w-5 h-5" />
-          </div>
+          <img
+            src="/K-Logo.png"
+            alt="پلتفرم کا"
+            className="w-10 h-10 rounded-2xl object-cover border-2 border-[#202A5A] dark:border-[#59BBAF]/40 shadow-[2px_2px_0_#202A5A] dark:shadow-[2px_2px_0_#59BBAF]"
+          />
           <div>
             <div className="font-black text-sm text-[#202A5A] dark:text-white tracking-tight">
-              سامانه رُکاد
+              پلتـفرم کــا
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EEF8F7] dark:bg-[#1F413D]/60 text-[#438C83] dark:text-[#59BBAF] border border-[#59BBAF]/20">
               پورتال دانش‌آموز

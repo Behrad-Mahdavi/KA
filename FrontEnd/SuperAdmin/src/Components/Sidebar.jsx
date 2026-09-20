@@ -69,16 +69,18 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Brand Header */}
       <div className="p-5 border-b-2 border-[#202A5A] dark:border-[#59BBAF]/30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#202A5A] text-[#59BBAF] border-2 border-[#202A5A] flex items-center justify-center font-black text-lg rokad-shadow">
-            <Sparkles className="w-5 h-5" />
-          </div>
+          <img
+            src="/K-Logo.png"
+            alt="پلتفرم کا"
+            className="w-10 h-10 rounded-2xl object-cover border-2 border-[#202A5A] dark:border-[#59BBAF]/40 shadow-[2px_2px_0_#202A5A] dark:shadow-[2px_2px_0_#59BBAF]"
+          />
           <div>
             <h2 className="font-black text-sm tracking-tight text-[#202A5A] dark:text-white">
-              پلتفرم رُکــاد
+              پلتـفرم کــا
             </h2>
-            <p className="text-[10px] font-bold text-[#E0195B]">
-              پنل مدیریت عالی سیستم (SuperAdmin)
-            </p>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#202A5A] text-[#59BBAF] border border-[#59BBAF]/30">
+              مدیریت عالی سیستم (SuperAdmin)
+            </span>
           </div>
         </div>
         {/* Mobile close button */}

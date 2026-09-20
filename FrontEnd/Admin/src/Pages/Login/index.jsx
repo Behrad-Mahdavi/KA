@@ -69,13 +69,15 @@ export default function Login() {
       <div className="w-full max-w-md bg-white dark:bg-[#1E2640] rounded-2xl border-2 border-[#202A5A] dark:border-[#59BBAF]/30 p-6 sm:p-8 rokad-shadow space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-[#202A5A] text-[#59BBAF] border-2 border-[#202A5A] flex items-center justify-center mx-auto rokad-shadow">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
+          <img
+            src="/KALogoLoginPage.png"
+            alt="پلتفرم کا"
+            className="h-16 mx-auto object-contain drop-shadow-xs"
+          />
           <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#202A5A] text-[#59BBAF] border border-[#59BBAF]/30">
             سامانه مدیریت هنرستان رُکاد
           </span>
-          <h1 className="text-2xl font-black text-[#202A5A] dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
             ورود به کارتابل ادمین
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">

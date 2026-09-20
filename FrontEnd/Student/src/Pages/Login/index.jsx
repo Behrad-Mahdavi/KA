@@ -83,19 +83,21 @@ export default function StudentLogin() {
       <div className="w-full max-w-md z-10">
         <RokadCard className="p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-700 shadow-[4px_4px_0_#202A5A] dark:shadow-[4px_4px_0_#59BBAF]">
           {/* Brand Header */}
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#59BBAF] to-[#438C83] flex items-center justify-center text-white shadow-[2.5px_2.5px_0_#1F413D]">
-              <GraduationCap className="w-7 h-7" />
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF8F7] dark:bg-[#1F413D]/40 text-[#438C83] dark:text-[#59BBAF] border border-[#59BBAF]/30 text-xs font-bold mb-2">
+          <div className="text-center mb-6 space-y-2">
+            <img
+              src="/KALogoLoginPage.png"
+              alt="پلتفرم کا"
+              className="h-16 mx-auto object-contain drop-shadow-xs"
+            />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF8F7] dark:bg-[#1F413D]/40 text-[#438C83] dark:text-[#59BBAF] border border-[#59BBAF]/30 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>هنرستان استارتاپی رُکاد</span>
+              <span>پورتال اختصاصی دانش‌آموز</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
-              ورود به پنل دانش‌آموز
+            <h2 className="text-xl font-black text-[#202A5A] dark:text-white">
+              ورود به حساب کاربری
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              جهت مشاهده امتیازات و ثبت فعالیت‌ها وارد شوید
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              جهت مشاهده کارنامه، امتیازات و دریافت پاداش‌ها وارد شوید
             </p>
           </div>
 

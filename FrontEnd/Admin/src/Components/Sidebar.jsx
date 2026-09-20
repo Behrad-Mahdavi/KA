@@ -36,12 +36,14 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Brand Header */}
       <div className="h-16 sm:h-20 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#202A5A] to-[#182044] dark:from-[#2B3875] dark:to-[#1D2651] flex items-center justify-center text-white shadow-[2px_2px_0_#59BBAF]">
-            <ShieldCheck className="w-5 h-5 text-[#59BBAF]" />
-          </div>
+          <img
+            src="/K-Logo.png"
+            alt="پلتفرم کا"
+            className="w-10 h-10 rounded-2xl object-cover border-2 border-[#202A5A] dark:border-[#59BBAF]/40 shadow-[2px_2px_0_#202A5A] dark:shadow-[2px_2px_0_#59BBAF]"
+          />
           <div>
             <div className="font-black text-sm text-[#202A5A] dark:text-white tracking-tight">
-              سامانه رُکاد
+              پلتـفرم کــا
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E9EAEF] dark:bg-[#0B0F1F]/60 text-[#202A5A] dark:text-gray-300 border border-[#202A5A]/20">
               پنل دبیران و معاونان
