@@ -266,22 +266,34 @@ const seedDB = async () => {
         await prisma.$connect();
         console.log('Database connected successfully via Prisma.');
 
-        await prisma.activity.deleteMany({});
-        console.log('Old activities deleted.');
-
         for (const act of activitiesData) {
-            await prisma.activity.create({
-                data: {
-                    parent: act.parent,
-                    name: act.name,
-                    order: act.order || 0,
-                    description: act.description,
-                    valueInput: act.valueInput,
-                    scoreDefinition: act.scoreDefinition
-                }
-            });
+            const existing = await prisma.activity.findFirst({ where: { name: act.name } });
+            if (existing) {
+                await prisma.activity.update({
+                    where: { id: existing.id },
+                    data: {
+                        parent: act.parent,
+                        name: act.name,
+                        order: act.order || 0,
+                        description: act.description,
+                        valueInput: act.valueInput,
+                        scoreDefinition: act.scoreDefinition
+                    }
+                });
+            } else {
+                await prisma.activity.create({
+                    data: {
+                        parent: act.parent,
+                        name: act.name,
+                        order: act.order || 0,
+                        description: act.description,
+                        valueInput: act.valueInput,
+                        scoreDefinition: act.scoreDefinition
+                    }
+                });
+            }
         }
-        console.log(`✅ ${activitiesData.length} activities seeded successfully into PostgreSQL via Prisma!`);
+        console.log(`✅ ${activitiesData.length} activities synced successfully into PostgreSQL via Prisma!`);
 
     } catch (err) {
         console.error('Error seeding database:', err);
