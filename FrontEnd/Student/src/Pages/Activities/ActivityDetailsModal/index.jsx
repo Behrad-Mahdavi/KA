@@ -1,102 +1,81 @@
-// components/Student/ActivityDetailsModal.jsx (مسیر فرضی)
-
 import React from 'react';
-import { IoClose, IoChatboxEllipsesOutline, IoChatbubbleEllipsesOutline } from 'react-icons/io5';
+import RokadModal from '../../../Components/UI/RokadModal';
+import RokadBadge from '../../../Components/UI/RokadBadge';
+import { formatToJalali, toPersianDigits } from '../../../Utils/utils';
+import { Calendar, Award, MessageSquare, Tag } from 'lucide-react';
 
-const ActivityDetailsModal = ({ isOpen, onClose, activity }) => {
-    if (!isOpen || !activity) {
-        return null;
-    }
+export default function ActivityDetailsModal({ isOpen, onClose, activity }) {
+  if (!isOpen || !activity) return null;
 
-    const handleModalContentClick = (e) => e.stopPropagation();
+  const renderField = (label, value, icon = null) => (
+    <div className="p-3 rounded-2xl bg-gray-50 dark:bg-[#1C2536] border border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="text-xs sm:text-sm font-bold text-[#202A5A] dark:text-white whitespace-pre-wrap">
+        {value || <span className="text-gray-400 font-normal italic">ثبت نشده</span>}
+      </div>
+    </div>
+  );
 
-    // تابع برای نمایش متن یا پیام "ثبت نشده"
-    const renderField = (label, value, isTextArea = false) => (
-        <div>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
-            {isTextArea ? (
-                <div className="bg-gray-100 p-3 rounded-lg text-sm text-gray-800 min-h-[80px] whitespace-pre-wrap">
-                    {value || <span className="text-gray-400 italic">ثبت نشده</span>}
-                </div>
-            ) : (
-                <div className="bg-gray-100 p-2.5 rounded-lg text-sm text-gray-800">
-                    {value || <span className="text-gray-400 italic">ثبت نشده</span>}
-                </div>
-            )}
+  const getBadgeVariant = (status) => {
+    if (status === 'approved' || status === 'ثبت توسط ادمین') return 'approved';
+    if (status === 'pending') return 'pending';
+    return 'rejected';
+  };
+
+  return (
+    <RokadModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="جزئیات فعالیت ثبت‌شده"
+      subtitle={activity.activityName}
+      maxWidth="max-w-lg"
+    >
+      <div className="space-y-4">
+        {/* Status and Score Row */}
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#EEF8F7] dark:bg-[#1F413D]/30 border border-[#59BBAF]/30">
+          <div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">وضعیت تایید:</span>
+            <RokadBadge
+              variant={getBadgeVariant(activity.status)}
+              label={activity.status === 'ثبت توسط ادمین' ? 'ثبت توسط دبیر/ادمین' : undefined}
+            />
+          </div>
+          <div className="text-left">
+            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">امتیاز کسب‌شده:</span>
+            <span className="text-lg font-black text-[#59BBAF]">
+              +{toPersianDigits(activity.scoreAwarded || 0)} امتیاز
+            </span>
+          </div>
         </div>
-    );
-    
-    // تابع برای استایل‌دهی به وضعیت
-    const getStatusInfo = (status) => {
-        switch (status) {
-            case 'approved': return { text: 'تایید شده', color: 'bg-green-100 text-green-800' };
-            case 'rejected': return { text: 'تایید نشده', color: 'bg-red-100 text-red-800' };
-            case 'pending': return { text: 'در انتظار بررسی', color: 'bg-yellow-100 text-yellow-800' };
-            default: return { text: status, color: 'bg-gray-100 text-gray-800' };
-        }
-    };
-    const statusInfo = getStatusInfo(activity.status);
 
-    return (
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 transition-opacity"
-            onClick={onClose}
-            dir="rtl"
-        >
-            <div 
-                className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-auto transform transition-all"
-                onClick={handleModalContentClick}
-            >
-                <div className="p-5 border-b border-gray-200 flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-gray-800">جزئیات فعالیت</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
-                        <IoClose size={24} />
-                    </button>
-                </div>
+        {/* Details Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {renderField("عنوان فعالیت", activity.activityName, <Tag className="w-3.5 h-3.5" />)}
+          {renderField("تاریخ ثبت", formatToJalali(activity.submissionDate), <Calendar className="w-3.5 h-3.5" />)}
+        </div>
 
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {renderField("عنوان فعالیت", activity.activityName)}
-                        <div>
-                            <label className="block text-xs text-gray-500 mb-1">وضعیت</label>
-                            <div className={`p-2.5 rounded-lg text-sm font-semibold text-center ${statusInfo.color}`}>
-                                {statusInfo.text}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {renderField("تاریخ ثبت", activity.submissionDate ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long' }).format(new Date(activity.submissionDate)) : '-')}
-                        {renderField("تاریخ بررسی", activity.reviewDate ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long' }).format(new Date(activity.reviewDate)) : '-')}
-                    </div>
+        {/* Input Details */}
+        {renderField("جزئیات / مقدار وارد شده", activity.details)}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                         {/* {renderField("شرح/مقدار ثبت شده", activity.details)} */}
-                         {renderField("امتیاز تخصیص یافته", activity.scoreAwarded?.toLocaleString('fa-IR'))}
-                    </div>
+        {/* Student Description if exists */}
+        {activity.description && renderField("توضیحات دانش‌آموز", activity.description)}
 
-                    {/* بخش کامنت‌ها */}
-                    <div className="pt-2">
-                        {renderField("توضیحات شما", activity.description, true)}
-                    </div>
-                    
-                    <div className="pt-2">
-                        {renderField("کامنت ادمین", activity.adminComment, true)}
-                    </div>
-
-                </div>
-                
-                <div className="p-4 bg-gray-50 border-t border-gray-200 rounded-b-xl flex justify-end">
-                    <button 
-                        onClick={onClose}
-                        className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-                    >
-                        بستن
-                    </button>
-                </div>
+        {/* Admin Feedback / Comment */}
+        {activity.adminComment && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-400 mb-1">
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>نظر و بازخورد ادمین / مدرسه:</span>
             </div>
-        </div>
-    );
-};
-
-export default ActivityDetailsModal;
+            <p className="text-xs sm:text-sm text-amber-950 dark:text-amber-200 font-medium">
+              {activity.adminComment}
+            </p>
+          </div>
+        )}
+      </div>
+    </RokadModal>
+  );
+}

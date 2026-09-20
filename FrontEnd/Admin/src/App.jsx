@@ -1,13 +1,14 @@
 import React, { useContext, useState } from 'react';
-// ۱. هوک useLocation را وارد کنید
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
-
-// Context و کامپوننت‌ها
 import { AuthContext } from './Utils/AuthContext';
-import Sidebar from './Components/Sidebar';
+import { ThemeProvider } from './Utils/ThemeContext';
 
-// صفحات (Pages)
+// Components
+import Sidebar from './Components/Sidebar';
+import Header from './Components/Header';
+
+// Pages
 import Home from './Pages/Home';
 import Login from './Pages/Login';
 import AddData from './Pages/AddData';
@@ -17,86 +18,106 @@ import Rewards from './Pages/Rewards';
 import Result from './Pages/Results';
 import ExcelUpload from './Pages/ExelUploader';
 
-
-// کامپوننت داخلی برای دسترسی به هوک‌ها
 const AppContent = () => {
   const { token, user } = useContext(AuthContext);
-  const [open, setOpen] = useState(true); // پیش‌فرض سایدبار باز است
-
-  // ۲. مسیر فعلی را از URL می‌گیریم
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const getOpen = (isOpen) => {
-    // مقدار جدید را از سایدبار دریافت کرده و state را آپدیت می‌کنیم
-    setOpen(isOpen);
+  const isAdminOrSuper = token && user?.role !== 'student';
+  const isLoginPage = location.pathname === '/login';
+  const showAppShell = isAdminOrSuper && !isLoginPage;
+
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/':
+        return 'میز مدیریت و آمار هنرستان';
+      case '/add-data':
+      case '/add-data/create':
+        return 'ثبت داده‌ها و فعالیت‌های دانش‌آموزی';
+      case '/requests':
+        return 'کارتابل بررسی درخواست‌های فعالیت';
+      case '/rewards':
+        return 'مدیریت و تایید تحویل پاداش‌ها';
+      case '/results':
+        return 'گزارش‌ها و جداول رتبه‌بندی';
+      case '/exel':
+        return 'بارگذاری گروهی فایل اکسل';
+      default:
+        return 'پنل مدیریت هنرستان رُکاد';
+    }
   };
 
-  // ۳. شرط هوشمند برای نمایش سایدبار
-  // سایدبار فقط زمانی نمایش داده می‌شود که:
-  // - کاربر لاگین کرده باشد (token وجود داشته باشد)
-  // - نقش کاربر "student" نباشد (یعنی ادمین یا سوپرادمین باشد)
-  // - مسیر فعلی "/login" نباشد
-  const showSidebar = token && user?.role !== 'student' && location.pathname !== '/login';
-
   return (
-    <div className="w-full relative flex min-h-screen">
-      <Toaster position='top-right' />
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0B0F17] text-[#292827] dark:text-[#F1F5F9] transition-colors flex">
+      <Toaster position="top-right" richColors />
 
-      {/* سایدبار فقط در صورت برقرار بودن شرط نمایش داده می‌شود */}
-
-      <Routes>
-        <Route
-          path='/login'
-          element={token && user?.role !== "student" ? <Navigate to="/" /> : <Login />}
+      {/* Sidebar Navigation */}
+      {showAppShell && (
+        <Sidebar
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
         />
-        <Route
-          path='/'
-          element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Home Open={open} />}
-        />
+      )}
 
-        {/* روت‌های تودرتو برای AddData */}
-        <Route path='/add-data'>
-          <Route
-            index
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <AddData Open={open} />}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+        {showAppShell && (
+          <Header
+            title={getPageTitle()}
+            onMenuClick={() => setMobileMenuOpen(true)}
           />
-          <Route
-            path='create'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <CreateNewData Open={open} />}
-          />
-        </Route>
+        )}
 
-        <Route
-          path='/requests'
-          element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Requests Open={open} />}
-        />
-        <Route
-          path='/rewards'
-          element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Rewards Open={open} />}
-        />
-        <Route
-          path='/results'
-          element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Result Open={open} />}
-        />
-        <Route
-          path='/exel' // املای صحیح: excel
-          element={!token || user?.role === "student" ? <Navigate to="/login" /> : <ExcelUpload Open={open} />}
-        />
-      </Routes>
-      {showSidebar && <Sidebar getOpen={getOpen} />}
-
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <Routes>
+            <Route
+              path="/login"
+              element={isAdminOrSuper ? <Navigate to="/" replace /> : <Login />}
+            />
+            <Route
+              path="/"
+              element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <Home />}
+            />
+            <Route path="/add-data">
+              <Route
+                index
+                element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <AddData />}
+              />
+              <Route
+                path="create"
+                element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <CreateNewData />}
+              />
+            </Route>
+            <Route
+              path="/requests"
+              element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <Requests />}
+            />
+            <Route
+              path="/rewards"
+              element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <Rewards />}
+            />
+            <Route
+              path="/results"
+              element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <Result />}
+            />
+            <Route
+              path="/exel"
+              element={!isAdminOrSuper ? <Navigate to="/login" replace /> : <ExcelUpload />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </div>
-  );
-}
-
-
-// کامپوننت اصلی App که BrowserRouter را فراهم می‌کند
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </BrowserRouter>
+  );
+}

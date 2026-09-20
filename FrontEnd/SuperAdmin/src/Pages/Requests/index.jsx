@@ -1,211 +1,378 @@
-import React, { useState } from 'react';
-import union from '../../assets/images/Union4.png'; // یا مسیر صحیح
-import Frame10 from '../../assets/images/Frame10.png'; // یک تصویر پس زمینه احتمالی برای کارت های نارنجی
-import Frame11 from '../../assets/images/Frame11.png'; // یک تصویر پس زمینه احتمالی برای کارت های نارنجی
-
-import { BiSolidSchool } from "react-icons/bi";
-import { IoNotificationsOutline } from "react-icons/io5";
-import { IoIosArrowDown } from "react-icons/io";
-import { LuMails } from "react-icons/lu"; // آیکون کلی درخواست‌ها
-import { BsChatLeftText } from "react-icons/bs"; // آیکون برای کارت‌های درخواست
-import { Link } from 'react-router-dom'; // اگر نیاز به لینک در جدول باشد
+import React, { useState, useEffect } from 'react';
+import fetchData from '../../Utils/fetchData';
+import { toPersianDigits, formatToJalali } from '../../Utils/utils';
+import { toast } from 'sonner';
+import StatCard from '../../Components/UI/StatCard';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import RokadBadge from '../../Components/UI/RokadBadge';
 import RequestApprovalModal from './RequestApprovalModal';
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  AlertCircle
+} from 'lucide-react';
 
-// کامپوننت جدید برای صفحه درخواست‌ها (بر اساس تصویر دوم)
-export default function Requests({ Open }) {
-    // منطق تاریخ مشابه کامپوننت‌های قبلی
-    const date = new Date();
-    const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
-    const day = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(date);
-    const year = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(date);
-    const week = new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(date);
+export default function Requests() {
+  const token = localStorage.getItem("token");
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState(null);
-    const handleRowClick = (request) => {
-        // فقط اگر درخواست تایید نشده است، مودال را باز کن (یا هر منطق دیگری)
-        // if (request.status === 'تایید نشده') {
-        setSelectedRequest(request);
-        setIsModalOpen(true);
-        // }
-    };
-    const handleCloseModal = () => {
+  const [stats, setStats] = useState({ pendingCount: 0, approvedCount: 0, totalRequests: 0 });
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('pending');
+  const [searchStudent, setSearchStudent] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  const fetchStats = async () => {
+    if (!token) return;
+    try {
+      const res = await fetchData('admin-review/stats', {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (res?.success && res.data) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchRequests = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      let query = `admin-review/student-activities?page=${page}&limit=10`;
+      if (filterStatus !== 'all') query += `&status=${filterStatus}`;
+      if (searchStudent.trim()) query += `&studentName=${encodeURIComponent(searchStudent.trim())}`;
+
+      const res = await fetchData(query, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (res?.success && Array.isArray(res.data)) {
+        setRequests(res.data);
+        setTotalPages(res.totalPages || 1);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [filterStatus, page]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    fetchRequests();
+  };
+
+  const handleApprove = async (id, scoreAwarded, adminComment, details) => {
+    setSubmittingAction(true);
+    try {
+      const res = await fetchData(`admin-review/student-activities/${id}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ scoreAwarded, adminComment, details })
+      });
+
+      if (res?.success) {
+        toast.success("درخواست با موفقیت تایید و امتیاز ثبت شد.");
         setIsModalOpen(false);
-        setSelectedRequest(null); // پاک کردن درخواست انتخاب شده
-    };
+        fetchStats();
+        fetchRequests();
+      } else {
+        toast.error(res?.message || "خطا در تایید درخواست.");
+      }
+    } catch (err) {
+      toast.error("خطای شبکه یا سرور");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-    const handleApprove = (requestId, points) => {
-        // اینجا منطق API برای تایید درخواست و تخصیص امتیاز را اضافه کنید
-        // ... پس از موفقیت:
-        // داده‌های جدول را به‌روز کنید (مثلا با fetch مجدد یا آپدیت local state)
-        handleCloseModal();
-    };
+  const handleReject = async (id, adminComment) => {
+    setSubmittingAction(true);
+    try {
+      const res = await fetchData(`admin-review/student-activities/${id}/reject`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ adminComment })
+      });
 
-    const handleReject = (requestId) => {
-        // اینجا منطق API برای رد درخواست را اضافه کنید
-        // ... پس از موفقیت:
-        // داده‌های جدول را به‌روز کنید
-        handleCloseModal();
-    };
-    // داده‌های نمونه برای جدول درخواست‌ها مطابق تصویر
-    const requestsData = [
-        { id: 1, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید نشده', isOdd: false },
-        { id: 2, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید شده', isOdd: true },
-        { id: 3, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید نشده', isOdd: false },
-        { id: 4, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید شده', isOdd: true },
-        { id: 5, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید نشده', isOdd: false },
-        { id: 6, name: 'علی هاشمی', title: 'طراحی پست استوری', submissionDate: '۲۲ دی ۱۴۰۳', reviewDate: '۲۲ دی ۱۴۰۳', status: 'تایید شده', isOdd: true },
-        // ... سایر ردیف ها
-    ];
+      if (res?.success) {
+        toast.info("درخواست رد شد و بازخورد به دانش‌آموز اعلام گردید.");
+        setIsModalOpen(false);
+        fetchStats();
+        fetchRequests();
+      } else {
+        toast.error(res?.message || "خطا در رد درخواست.");
+      }
+    } catch (err) {
+      toast.error("خطای شبکه یا سرور");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-    // تابعی برای دریافت کلاس رنگ وضعیت
-    const getStatusClass = (status) => {
-        switch (status) {
-            case 'تایید شده': return 'text-green-600';
-            case 'تایید نشده': return 'text-red-600'; // بر اساس تصویر
-            case 'در انتظار بررسی': return 'text-yellow-600'; // یا نارنجی یا خاکستری
-            default: return 'text-gray-600';
-        }
-    };
+  const getStatusBadge = (status) => {
+    if (status === 'approved') return <RokadBadge variant="ecosystem">تایید شده</RokadBadge>;
+    if (status === 'pending') return <RokadBadge variant="college">در انتظار بررسی</RokadBadge>;
+    return <RokadBadge variant="female">رد شده</RokadBadge>;
+  };
 
-    return (
-        <>
-            {/* تصویر پس زمینه بالا سمت چپ */}
-            <img src={union} className='absolute scale-75 top-[-4rem] left-[-10rem] z-0' alt="" />
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Header */}
+      <div>
+        <h2 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
+          کارتابل بررسی و داوری درخواست‌ها
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          بررسی، تایید امتیاز یا رد فعالیت‌های ارسال‌شده توسط دانش‌آموزان با دسترسی مدیریت عالی
+        </p>
+      </div>
 
-            {/* کانتینر اصلی محتوا با عرض داینامیک */}
-            <div className={`${!Open ? "w-[80%]" : "w-[94%]"} p-8 transition-all duration-500 flex flex-col h-screen relative z-10`}>
+      {/* 2. Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        <StatCard
+          title="در انتظار بررسی"
+          value={toPersianDigits(stats.pendingCount || 0)}
+          unit="مورد"
+          icon={Clock}
+          persona="female"
+        />
+        <StatCard
+          title="تایید شده"
+          value={toPersianDigits(stats.approvedCount || 0)}
+          unit="مورد"
+          icon={CheckCircle2}
+          persona="ecosystem"
+        />
+        <StatCard
+          title="کل درخواست‌ها"
+          value={toPersianDigits(stats.totalRequests || 0)}
+          unit="مورد"
+          icon={ClipboardList}
+          persona="male"
+        />
+      </div>
 
-                {/* هدر صفحه - مشابه بقیه */}
-                <div className="flex justify-between items-center h-[5vh] mb-6">
-                    <div className="flex justify-center items-center gap-5">
-                        <h3 className='text-[#19A297] text-xs'>هنرستان استارتاپی رکاد</h3>
-                        <BiSolidSchool className='text-[#19A297] ml-[-10px] scale-150' />
-                        <div className='w-8 flex justify-center items-center border border-gray-400 h-8 rounded-full'>
-                            <IoNotificationsOutline className='text-gray-400 scale-100' />
-                        </div>
-                    </div>
-                    <div className="flex justify-center items-center gap-5">
-                        <p className='text-gray-400 text-xs'> امروز {week} {day} {month} ماه، {year}</p>
-                        <h1 className='text-[#19A297] font-semibold text-lg'>درخواست ها</h1> {/* عنوان صفحه */}
-                    </div>
-                </div>
+      {/* 3. Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-[#1E2640] border-2 border-[#202A5A] dark:border-[#59BBAF]/30 rokad-shadow">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'pending', label: 'در انتظار بررسی' },
+            { id: 'approved', label: 'تایید شده' },
+            { id: 'rejected', label: 'رد شده' },
+            { id: 'all', label: 'همه درخواست‌ها' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setFilterStatus(tab.id);
+                setPage(1);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                filterStatus === tab.id
+                  ? 'bg-[#202A5A] text-[#59BBAF] border-[#202A5A] shadow-[2px_2px_0_#59BBAF]'
+                  : 'bg-transparent text-gray-600 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-                {/* بخش کارت‌های بالا (چیدمان جدید) */}
-                <div className="flex gap-5 mb-6 h-[30vh]"> {/* ارتفاع ممکن است نیاز به تنظیم داشته باشد */}
+        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-64">
+          <input
+            type="text"
+            value={searchStudent}
+            onChange={(e) => setSearchStudent(e.target.value)}
+            placeholder="جستجوی نام دانش‌آموز..."
+            className="w-full rokad-input rounded-xl pr-9 text-xs bg-white dark:bg-[#151D2A]"
+          />
+          <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </form>
+      </div>
 
-                    {/* ستون سمت چپ: دو کارت کوچک */}
-                    <div className="flex flex-col gap-4 w-1/2">
-                        {/* کارت درخواست های در انتظار بررسی */}
-                        <div className="relative flex-1 bg-[#FFF7F0] rounded-lg overflow-hidden p-6 flex items-center justify-between shadow-sm border border-gray-100">
-                            <img src={Frame11} className='absolute z-0 h-full w-full object-cover left-0 top-0 opacity-100' alt="" />
-                            <p className='text-[#FF4F0A] font-semibold text-3xl z-10'>۱۰</p>
-                            <div className='flex items-center gap-3 z-10'>
-                                <h2 className='text-[#FF4F0A] font-semibold text-2xl text-right'>درخواست های در انتظار بررسی</h2>
-                                <div className="bg-orange-500 flex justify-center items-center w-10 h-10 rounded-full flex-shrink-0">
-                                    <BsChatLeftText className='text-white scale-125' />
-                                </div>
-                            </div>
-                        </div>
-                        {/* کارت درخواست های تایید شده */}
-                        <div className="relative flex-1 bg-[#FFF7F0] rounded-lg overflow-hidden p-6 flex items-center justify-between shadow-sm border border-gray-100">
-                            <img src={Frame11} className='absolute z-0 h-full w-full object-cover top-0 left-0 opacity-100' alt="" />
-                            <p className='text-[#FF4F0A] font-semibold text-3xl z-10'>۳۲۵</p>
-                            <div className='flex items-center gap-3 z-10'>
-                                <h2 className='text-[#FF4F0A] font-semibold text-2xl text-right'>درخواست های تایید شده</h2>
-                                <div className="bg-orange-500 flex justify-center items-center w-10 h-10 rounded-full flex-shrink-0">
-                                    <BsChatLeftText className='text-white scale-125' />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ستون سمت راست: یک کارت بزرگ */}
-                    <div className="relative w-2/4 rounded-lg overflow-hidden p-6 flex flex-col justify-center items-center text-center shadow-sm border border-gray-100 gap-2">
-                        <img src={Frame10} className='absolute z-0 h-full w-full object-cover top-0 left-0 opacity-100' alt="" />
-                        <div className="bg-orange-500 flex justify-center items-center w-12 h-12 rounded-full mb-2 z-10">
-                            <BsChatLeftText className='text-white scale-150' />
-                        </div>
-                        <h2 className='text-[#FF4F0A] font-semibold text-2xl z-10'>کل درخواست های ثبت شده</h2>
-                        <p className='text-[#FF4F0A] font-bold text-4xl z-10'>۳۱۲,۵۱۲</p>
-                    </div>
-                </div>
-
-                {/* بخش فیلترها و عنوان جدول */}
-                <div className="flex justify-between items-center w-full mb-3 mt-8">
-                    {/* فیلترها */}
-                    <div className="flex gap-2">
-                        {/* دراپ داون عنوان (یا دسته بندی؟) */}
-                        <div className="relative bg-white border border-gray-300 rounded px-3 py-1.5 flex items-center justify-between text-xs text-gray-600 cursor-pointer min-w-[100px]">
-                            <span>عنوان</span>
-                            <IoIosArrowDown className="text-gray-400 ml-2" />
-                            {/* Select hidden or integrated for functionality */}
-                        </div>
-                        {/* دراپ داون وضعیت */}
-                        <div className="relative bg-white border border-gray-300 rounded px-3 py-1.5 flex items-center justify-between text-xs text-gray-600 cursor-pointer min-w-[90px]">
-                            <span>وضعیت</span>
-                            <IoIosArrowDown className="text-gray-400 ml-2" />
-                            {/* Select hidden or integrated for functionality */}
-                        </div>
-                        {/* دراپ داون تاریخ */}
-                        <div className="relative bg-white border border-gray-300 rounded px-3 py-1.5 flex items-center justify-between text-xs text-gray-600 cursor-pointer min-w-[80px]">
-                            <span>تاریخ</span>
-                            <IoIosArrowDown className="text-gray-400 ml-2" />
-                            {/* Select hidden or integrated for functionality */}
-                        </div>
-                    </div>
-                    {/* سمت چپ: متن راهنما و عنوان */}
-                    <div className="flex items-center w-[50%] justify-between gap-4">
-                        <p className='text-gray-400 text-xs '>در اینجا سوابق آخرین درخواست ها را مشاهده می کنید</p>
-                        <h3 className='text-[#19A297] font-semibold text-lg'>آخرین درخواست ها</h3>
-                    </div>
-                </div>
-
-                {/* جدول درخواست‌ها */}
-                <div className="flex-grow overflow-auto">
-                    <table className='w-full border-collapse bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100'>
-                        {/* سربرگ جدول */}
-                        <thead className='bg-gray-50 text-sm text-[#202A5A]'>
-                            <tr>
-                                {/* ترتیب ستون ها بر اساس تصویر جدید (راست به چپ) */}
-                                <th className='font-medium text-center px-4 py-3 border border-gray-200'>وضعیت</th>
-                                <th className='font-medium text-center px-4 py-3 border border-gray-200'>تاریخ بررسی</th>
-                                <th className='font-medium text-center px-4 py-3 border border-gray-200'>تاریخ ثبت</th>
-                                <th className='font-medium text-center px-4 py-3 border border-gray-200'>عنوان</th>
-                                <th className='font-medium text-center px-4 py-3 border border-gray-200'>نام و نام خانوادگی</th>
-                            </tr>
-                        </thead>
-                        {/* بدنه جدول */}
-                        <tbody className=''>
-                            {requestsData.map((row) => (
-                                <tr key={row.id}
-                                    className={`${row.isOdd ? 'bg-gray-50' : 'bg-white'} text-sm hover:bg-gray-100 transition-colors cursor-pointer`} // Added cursor-pointer
-                                    onClick={() => handleRowClick(row)} // Attach onClick handler
-                                >
-                                    {/* استفاده از کلاس رنگی برای وضعیت */}
-                                    <td className={`px-4 py-3 text-center whitespace-nowrap border border-gray-200 font-medium ${getStatusClass(row.status)}`}>{row.status}</td>
-                                    {/* توجه به ترتیب جدید ستون ها */}
-                                    <td className='px-4 py-3 rtl text-center whitespace-nowrap border border-gray-200 text-[#202A5A]'>{row.reviewDate}</td>
-                                    <td className='px-4 py-3 rtl text-center whitespace-nowrap border border-gray-200 text-[#202A5A]'>{row.submissionDate}</td>
-                                    <td className='px-4 py-3 text-center whitespace-nowrap border border-gray-200 text-[#202A5A]'>{row.title}</td>
-                                    <td className='px-4 py-3 text-center whitespace-nowrap border border-gray-200 text-[#202A5A]'>{row.name}</td>
-
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
+      {/* 4. Requests Table */}
+      <RokadCard className="p-0 overflow-hidden" hover={false}>
+        {loading ? (
+          <div className="p-12 text-center text-xs text-gray-400">
+            در حال دریافت درخواست‌ها...
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="p-12 text-center">
+            <ClipboardList className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-[#202A5A] dark:text-white mb-1">
+              درخواستی در این بخش وجود ندارد
+            </h4>
+            <p className="text-xs text-gray-400">
+              با انتخاب فیلترهای دیگر می‌توانید سوابق پیشین را مشاهده کنید.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-right text-xs sm:text-sm">
+                <thead className="bg-[#F8F9FA] dark:bg-[#151D2A] text-[#202A5A] dark:text-white font-black border-b-2 border-[#202A5A] dark:border-[#59BBAF]/30">
+                  <tr>
+                    <th className="p-4">دانش‌آموز</th>
+                    <th className="p-4">پایه و کلاس</th>
+                    <th className="p-4">عنوان فعالیت</th>
+                    <th className="p-4">تاریخ ثبت</th>
+                    <th className="p-4">وضعیت</th>
+                    <th className="p-4 text-center">امتیاز</th>
+                    <th className="p-4 text-center">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                  {requests.map((item) => (
+                    <tr
+                      key={item.id || item._id}
+                      className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <td className="p-4 font-bold text-[#202A5A] dark:text-white">
+                        {item.studentName}
+                      </td>
+                      <td className="p-4 text-gray-500 dark:text-gray-400">
+                        پایه {item.studentGrade || '—'} • کلاس {toPersianDigits(item.studentClass || '')}
+                      </td>
+                      <td className="p-4">
+                        <span className="font-bold text-[#202A5A] dark:text-white block">
+                          {item.activityName || item.activityTitle}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                          {item.activityParent}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500 dark:text-gray-400">
+                        {formatToJalali(item.submissionDate || item.createdAt)}
+                      </td>
+                      <td className="p-4">{getStatusBadge(item.status)}</td>
+                      <td className="p-4 text-center font-black text-[#59BBAF]">
+                        {item.scoreAwarded > 0 ? `+${toPersianDigits(item.scoreAwarded)}` : toPersianDigits(item.scoreAwarded ?? 0)}
+                      </td>
+                      <td className="p-4 text-center">
+                        <RokadButton
+                          onClick={() => {
+                            setSelectedRequest(item);
+                            setIsModalOpen(true);
+                          }}
+                          variant={item.status === 'pending' ? 'primary' : 'outline'}
+                          size="sm"
+                        >
+                          {item.status === 'pending' ? 'بررسی و تصمیم' : 'مشاهده جزئیات'}
+                        </RokadButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {/* Closing main content div */}
 
-            <RequestApprovalModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                requestData={selectedRequest}
-                onApprove={handleApprove}
-                onReject={handleReject}
-            />
-        </>
-    );
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-white/5">
+              {requests.map((item) => (
+                <div key={item.id || item._id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-[#202A5A] dark:text-white">
+                        {item.studentName}
+                      </h4>
+                      <span className="text-xs text-gray-400">
+                        پایه {item.studentGrade} • کلاس {toPersianDigits(item.studentClass)}
+                      </span>
+                    </div>
+                    {getStatusBadge(item.status)}
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-xs">
+                    <span className="font-bold text-[#202A5A] dark:text-white block">
+                      {item.activityName || item.activityTitle}
+                    </span>
+                    <span className="text-gray-400 text-[11px]">
+                      {item.activityParent}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <span className="text-gray-400">
+                      {formatToJalali(item.submissionDate || item.createdAt)}
+                    </span>
+                    <RokadButton
+                      onClick={() => {
+                        setSelectedRequest(item);
+                        setIsModalOpen(true);
+                      }}
+                      variant={item.status === 'pending' ? 'primary' : 'outline'}
+                      size="sm"
+                    >
+                      {item.status === 'pending' ? 'بررسی و ثبت نظر' : 'مشاهده'}
+                    </RokadButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-xs">
+            <span className="text-gray-400">
+              صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+            </span>
+            <div className="flex items-center gap-2">
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span>قبلی</span>
+              </RokadButton>
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <span>بعدی</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </RokadButton>
+            </div>
+          </div>
+        )}
+      </RokadCard>
+
+      {/* Approval / Review Modal */}
+      <RequestApprovalModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        requestData={selectedRequest}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        submitting={submittingAction}
+      />
+    </div>
+  );
 }

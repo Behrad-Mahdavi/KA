@@ -1,50 +1,64 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import union from '../../assets/images/Union4.png';
-import frame7 from '../../assets/images/Frame7.png';
-import frame72 from '../../assets/images/Frame72.png';
-import { BiSolidSchool } from "react-icons/bi";
-import { IoNotificationsOutline } from "react-icons/io5";
-import { IoDocumentTextOutline } from "react-icons/io5";
-import { Link } from 'react-router-dom';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, FileCheck, Info, UserPlus } from 'lucide-react';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import { toPersianDigits } from '../../Utils/utils';
 
-function ExcelUpload({ Open }) {
+export default function ExcelUpload() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
 
-  // منطق تاریخ
-  const date = new Date();
-  const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
-  const day = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(date);
-  const year = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(date);
-  const week = new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(date);
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
+  const validateAndSetFile = (selectedFile) => {
     if (!selectedFile) return;
 
-    if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
-      alert('لطفا فقط فایل‌های اکسل (xlsx یا xls) آپلود کنید');
+    if (!selectedFile.name.match(/\.(xlsx|xls)$/i)) {
+      alert('لطفاً فقط فایل‌های اکسل با پسوند xlsx یا xls را انتخاب فرمایید.');
       return;
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      alert('حجم فایل باید کمتر از 5 مگابایت باشد');
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      alert('حجم فایل باید کمتر از ۱۰ مگابایت باشد.');
       return;
     }
 
     setFile(selectedFile);
-    // پاک کردن نتایج و خطاهای قبلی هنگام انتخاب فایل جدید
     setResult(null);
     setErrors([]);
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    validateAndSetFile(selectedFile);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetFile(e.dataTransfer.files[0]);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setErrors(['لطفا یک فایل انتخاب کنید']);
+      setErrors(['لطفاً ابتدا یک فایل اکسل انتخاب کنید.']);
       return;
     }
 
@@ -54,41 +68,36 @@ function ExcelUpload({ Open }) {
     try {
       setLoading(true);
       setErrors([]);
+      setUploadProgress(0);
       const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5005/api/';
       const response = await axios.post(`${baseUrl}exel/register`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-        }
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadProgress(percentCompleted);
+          }
+        },
       });
 
-      // پردازش پاسخ سرور
       if (response.data && response.data.success) {
         setResult(response.data);
       } else {
-        setErrors([response.data?.message || 'خطای نامشخص از سرور']);
+        setErrors([response.data?.message || 'خطای نامشخص از سمت سرور']);
       }
     } catch (error) {
       console.error('Error details:', error.response?.data || error.message);
-
-      // مدیریت خطاهای مختلف
-      if (error.response?.status === 401) {
-        setErrors(['احراز هویت ناموفق بود. لطفا دوباره وارد شوید']);
-      } else if (error.response?.data?.errors) {
-        // اگر سرور آرایه‌ای از خطاها برگرداند
+      if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       } else if (error.response?.data?.message) {
         setErrors([error.response.data.message]);
-      } else if (error.code === 'NETWORK_ERROR') {
-        setErrors(['خطای اتصال به سرور. لطفا اتصال اینترنت خود را بررسی کنید']);
       } else {
-        console.log(error)
-        setErrors(['خطا در آپلود فایل. لطفا فایل را بررسی کنید و مجددا تلاش نمایید']);
+        setErrors(['خطا در آپلود فایل اکسل. لطفاً ساختار داده‌ها را بررسی فرمایید.']);
       }
     } finally {
       setLoading(false);
@@ -96,127 +105,131 @@ function ExcelUpload({ Open }) {
   };
 
   return (
-    <>
-      <img src={union} className='absolute scale-75 top-[-4rem] left-[-10rem] z-0' alt="" />
-
-      <div className={`${!Open ? "w-[80%]" : "w-[94%]"} p-8 transition-all duration-500 flex flex-col h-screen relative z-10`}>
-
-        {/* هدر صفحه */}
-        <div className="flex justify-between items-center h-[5vh] mb-6">
-          <div className="flex justify-center items-center gap-5">
-            <h3 className='text-[#19A297] text-xs'>هنرستان استارتاپی رکاد</h3>
-            <BiSolidSchool className='text-[#19A297] ml-[-10px] scale-150' />
-            <div className='w-8 flex justify-center items-center border-gray-400 h-8 border rounded-full'>
-              <IoNotificationsOutline className='text-gray-400 scale-100' />
+    <div className="max-w-3xl mx-auto space-y-6">
+      <RokadCard
+        title="ثبت‌نام گروهی کاربران (هنرآموزان و مدیران)"
+        subtitle="ایجاد خودکار حساب‌های کاربری، کلاس‌بندی و تخصیص نقش‌ها با اکسل"
+        badge="کاربران"
+        persona="college"
+      >
+        {/* Format guide box */}
+        <div className="p-4 rounded-xl bg-gray-50 dark:bg-white/5 border-2 border-gray-200 dark:border-white/10 text-xs space-y-3 mb-6">
+          <div className="flex items-center gap-2 font-bold text-[#202A5A] dark:text-[#59BBAF]">
+            <Info className="w-4 h-4 text-[#F8A41D]" />
+            <span>راهنمای ساختار و نام ستون‌های فایل اکسل:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-600 dark:text-gray-300">
+            <div>
+              <p className="font-bold">ستون‌های اجباری:</p>
+              <p className="font-mono text-[11px] text-[#E0195B]">idCode , fullName , role</p>
+            </div>
+            <div>
+              <p className="font-bold">ستون‌های اختیاری:</p>
+              <p className="font-mono text-[11px] text-[#59BBAF]">fieldOfStudy , grade , class , score</p>
             </div>
           </div>
-          <div className="flex justify-center items-center gap-5">
-            <p className='text-gray-400 text-xs'> امروز {week} {day} {month} ماه، {year}</p>
-            <h1 className='text-[#19A297] font-semibold text-lg'>ثبت‌نام گروهی از طریق اکسل</h1>
-          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-[11px]">
+            * رمز عبور پیش‌فرض برای دانش‌آموز <code className="bg-gray-200 dark:bg-white/10 px-1 rounded">s+کدملی</code> و برای مدیر <code className="bg-gray-200 dark:bg-white/10 px-1 rounded">a+کدملی</code> تنظیم می‌شود.
+          </p>
         </div>
 
-        {/* بخش کارت‌های بالا */}
-        <div className="flex gap-5 mb-6 h-[35vh]">
-          {/* کارت توضیحات */}
-          <div className="relative flex-1 bg-white rounded-lg overflow-hidden p-8 flex items-center justify-between shadow-sm border border-gray-100">
-            <img src={frame7} className='absolute z-0 h-full w-full object-cover scale-110 top-0 left-0 opacity-100' alt="" />
-            <div className='flex items-center gap-4 z-10 w-full justify-between'>
-              <div className="bg-[#202A5A] flex justify-center items-center w-12 h-12 rounded-full shrink-0">
-                <IoDocumentTextOutline className='scale-150 text-white' />
-              </div>
-              <div className="flex flex-col gap-1 rtl">
-                <h2 className='text-[#202A5A] font-semibold text-lg mb-1'>📂 راهنمای ساختار فایل اکسل (xlsx یا xls)</h2>
-                <div className="text-gray-700 text-sm space-y-1">
-                  <p>✅ <strong>ستون‌های اجباری (نام ستون‌ها به انگلیسی):</strong> <code className="bg-gray-100 px-1 rounded">idCode</code> , <code className="bg-gray-100 px-1 rounded">fullName</code> , <code className="bg-gray-100 px-1 rounded">role</code></p>
-                  <p>📌 <strong>ستون‌های اختیاری:</strong> <code className="bg-gray-100 px-1 rounded">fieldOfStudy</code> , <code className="bg-gray-100 px-1 rounded">grade</code> , <code className="bg-gray-100 px-1 rounded">class</code> , <code className="bg-gray-100 px-1 rounded">score</code> (پیش‌فرض ۰)</p>
-                  <p>🔐 <strong>رمز عبور خودکار:</strong> دانش‌آموز (<code>student</code>) → <kbd className="bg-gray-200 px-1 rounded">s+کدملی</kbd> &nbsp;|&nbsp; مدیر (<code>admin</code>) → <kbd className="bg-gray-200 px-1 rounded">a+کدملی</kbd></p>
-                  <p>⚠️ <strong>محدودیت‌ها:</strong> حداکثر حجم ۵ مگابایت، کد ملی نباید تکراری باشد، حتماً از فرمت <code>.xlsx</code> یا <code>.xls</code> استفاده کنید.</p>
-                  <p className="text-xs text-gray-500 mt-2">📥 مثال از یک سطر معتبر:</p>
-                  <pre className="text-xs bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto">
-                    {`idCode       | fullName     | role    | fieldOfStudy | grade | class | score
-1234567890   | رضا احمدی    | student | ریاضی        | دهم   | 1     | 100`}
-                  </pre>
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Drag & Drop File Zone */}
+          <div
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-3 relative ${
+              dragActive
+                ? 'border-[#59BBAF] bg-[#59BBAF]/10 scale-[1.01]'
+                : file
+                ? 'border-[#202A5A] dark:border-[#59BBAF] bg-white dark:bg-[#151D2A]'
+                : 'border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-white/5 hover:border-[#202A5A] dark:hover:border-[#59BBAF]'
+            }`}
+          >
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleFileChange}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
 
+            <div className="w-14 h-14 rounded-2xl bg-[#F8A41D]/15 text-[#F8A41D] flex items-center justify-center rokad-shadow">
+              {file ? <FileCheck className="w-7 h-7" /> : <UploadCloud className="w-7 h-7" />}
+            </div>
+
+            <div>
+              <p className="font-bold text-sm text-gray-800 dark:text-white">
+                {file ? file.name : 'فایل اکسل کاربران را اینجا رها کنید یا کلیک کنید'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {file
+                  ? `حجم فایل: ${toPersianDigits((file.size / 1024).toFixed(1))} کیلوبایت`
+                  : 'پشتیبانی از فرمت‌های استاندارد اکسل (XLSX, XLS)'}
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* بخش فرم آپلود */}
-        <div className="relative bg-white rounded-lg overflow-hidden mb-6 p-6 flex flex-col shadow-sm border border-gray-100 min-h-[30vh]">
-          <img src={frame72} className='absolute z-0 h-full w-full object-cover top-0 left-[-30px] opacity-100 scale-110' alt="" />
-
-          <div className="z-10">
-            <h2 className='text-[#202A5A] font-semibold text-lg mb-4'>آپلود فایل اکسل</h2>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="flex flex-col gap-2">
-                <label className="block text-gray-600 text-sm">فایل اکسل</label>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls"
-                  onChange={handleFileChange}
-                  className="border border-gray-300 p-2 rounded-lg text-sm w-full max-w-md"
-                  disabled={loading}
-                />
-                <p className="text-gray-500 text-xs">فرمت‌های مجاز: xlsx, xls (حداکثر حجم: 5MB)</p>
+          {/* Upload Progress */}
+          {loading && uploadProgress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-gray-300">
+                <span>در حال بارگذاری و بررسی ساختار...</span>
+                <span>%{toPersianDigits(uploadProgress)}</span>
               </div>
+              <div className="w-full h-3 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden border border-[#202A5A] dark:border-white/20">
+                <div
+                  className="h-full bg-[#59BBAF] transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
 
-              <button
-                type="submit"
-                disabled={loading || !file}
-                className="bg-[#19A297] text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-[#168a7f] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'در حال پردازش...' : 'آپلود و ثبت‌نام'}
-              </button>
-            </form>
+          {/* Submit Action */}
+          <div className="flex justify-end">
+            <RokadButton
+              type="submit"
+              disabled={loading || !file}
+              variant="primary"
+              className="w-full sm:w-auto px-8"
+            >
+              {loading ? 'در حال ثبت کاربران...' : 'بارگذاری و شروع ثبت‌نام'}
+            </RokadButton>
           </div>
-        </div>
+        </form>
 
-        {/* نمایش خطاها */}
+        {/* Success Results Card */}
+        {result && (
+          <div className="mt-6 p-5 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 rokad-shadow space-y-2">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>{result.message || 'عملیات با موفقیت انجام شد'}</span>
+            </div>
+            {result.insertedCount !== undefined && (
+              <p className="text-xs font-bold">
+                تعداد رکوردهای افزوده شده: {toPersianDigits(result.insertedCount)} نفر
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Error List */}
         {errors.length > 0 && (
-          <div className="relative bg-white rounded-lg overflow-hidden mb-6 p-6 shadow-sm border border-red-200 z-10">
-            <h3 className="font-bold text-red-600 mb-3">خطا در پردازش فایل</h3>
-            <ul className="list-disc list-inside text-sm text-red-500 space-y-1">
-              {errors.map((error, i) => (
-                <li key={i}>{error}</li>
+          <div className="mt-6 p-5 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/30 text-rose-900 dark:text-rose-300 rokad-shadow space-y-2">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>خطا در ثبت اطلاعات ({toPersianDigits(errors.length)} مورد):</span>
+            </div>
+            <ul className="list-disc list-inside text-xs space-y-1 max-h-48 overflow-y-auto">
+              {errors.map((err, i) => (
+                <li key={i}>{err}</li>
               ))}
             </ul>
           </div>
         )}
-
-        {/* نتایج آپلود */}
-        {result && (
-          <div className={`relative bg-white rounded-lg overflow-hidden p-6 shadow-sm border ${result.success ? 'border-green-200' : 'border-red-200'} z-10`}>
-            <h3 className={`font-bold mb-3 ${result.success ? 'text-green-600' : 'text-red-600'}`}>
-              {result.message}
-            </h3>
-
-            {result.insertedCount !== undefined && (
-              <p className="text-[#202A5A] text-sm mb-2">تعداد کاربران ثبت‌شده: {result.insertedCount}</p>
-            )}
-
-            {result.duplicateCount > 0 && (
-              <p className="text-amber-600 text-sm mb-2">تعداد کاربران تکراری: {result.duplicateCount}</p>
-            )}
-
-            {result.errorCount > 0 && (
-              <div className="mt-3">
-                <h4 className="font-bold text-sm text-[#202A5A] mb-2">خطاهای جزئیات:</h4>
-                <ul className="list-disc list-inside text-sm text-red-500 space-y-1">
-                  {result.errors.map((error, i) => (
-                    <li key={i}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
+      </RokadCard>
+    </div>
   );
 }
-
-export default ExcelUpload;

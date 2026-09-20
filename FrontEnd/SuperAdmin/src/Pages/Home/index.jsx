@@ -1,144 +1,215 @@
-import React, { useState } from 'react';
-import Sidebar from '../../Components/Sidebar';
-import union from '../../assets/images/Union4.png';
-import frame156 from '../../assets/images/Frame156.png';
-import frame6 from '../../assets/images/Frame6.png';
-import { BiSolidSchool } from "react-icons/bi";
-import { FaMedal } from "react-icons/fa";
-import { IoNotificationsOutline } from "react-icons/io5";
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Coins,
+  Gift,
+  CheckCircle2,
+  Clock,
+  UserPlus,
+  ListPlus,
+  FileCheck2,
+  Table,
+  ArrowUpRight,
+  TrendingUp,
+  Sparkles,
+  Users
+} from 'lucide-react';
+import StatCard from '../../Components/UI/StatCard';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import RokadBadge from '../../Components/UI/RokadBadge';
+import { toPersianDigits, formatToJalali } from '../../Utils/utils';
+import fetchData from '../../Utils/fetchData';
 
-export default function Home({ Open }) {
-  const date = new Date();
-  const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
-  const day = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(date);
-  const year = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(date);
-  const week = new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(date);
+export default function SuperAdminHome() {
+  const [stats, setStats] = useState({
+    systemOverallStudentTokens: 0,
+    systemTotalAvailableTokens: 0,
+    rewardsPaidValue: 0,
+    rewardsPendingValue: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    const fetchAdminStats = async () => {
+      if (!token) return;
+      try {
+        const res = await fetchData('student-reward/admin-stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res?.success && res.data) {
+          setStats(res.data);
+        }
+      } catch (err) {
+        console.warn("Could not load stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAdminStats();
+  }, [token]);
+
+  const quickActions = [
+    {
+      title: 'ثبت‌نام گروهی کاربران',
+      desc: 'افزودن هنرآموزان و پرسنل با فایل اکسل',
+      to: '/add-users',
+      icon: UserPlus,
+      persona: 'college',
+    },
+    {
+      title: 'تعریف و بروزرسانی فعالیت‌ها',
+      desc: 'بارگذاری ماتریس فعالیت‌ها با ضرایب',
+      to: '/add-activity',
+      icon: ListPlus,
+      persona: 'female',
+    },
+    {
+      title: 'بارگذاری کاتالوگ جوایز',
+      desc: 'تنظیم اقلام پاداش و توکن‌های موردنیاز',
+      to: '/rewards',
+      icon: Gift,
+      persona: 'club',
+    },
+    {
+      title: 'کارتابل تایید درخواست‌ها',
+      desc: 'بررسی مدارک ارسالی هنرآموزان',
+      to: '/requests',
+      icon: FileCheck2,
+      persona: 'male',
+    },
+  ];
 
   return (
-    <>
-      {/* بک‌گراند تزئینی */}
-      <img src={union} className="absolute scale-75 top-[-4rem] left-[-10rem]" alt="" />
-
-      {/* کانتینر اصلی داشبورد */}
-      <div className={`${!Open ? "w-[80%]" : "w-[94%]"} p-8 transition-all duration-500 flex-col h-screen`}>
-
-        {/* هدر بالا */}
-        <div className="flex justify-between items-center h-[5vh] mb-4">
-          <div className="flex justify-center items-center gap-5">
-            <h3 className="text-[#19A297] text-xs">هنرستان استارتاپی رکاد</h3>
-            <BiSolidSchool className="text-[#19A297] ml-[-10px] scale-150" />
-            <div className="w-8 h-8 flex justify-center items-center border border-gray-400 rounded-full">
-              <IoNotificationsOutline className="text-gray-400" />
-            </div>
+    <div className="space-y-8">
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl border-2 border-[#202A5A] dark:border-[#59BBAF]/40 bg-[#202A5A] text-white p-6 sm:p-8 rokad-shadow">
+        <div className="relative z-10 max-w-2xl space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#59BBAF]/20 text-[#59BBAF] border border-[#59BBAF]/30 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>مرکز راهبری و کنترل هوشمند رُکاد</span>
           </div>
-          <div className="flex justify-center items-center gap-5">
-            <p className="text-gray-400 text-xs">امروز {week} {day} {month} ماه، {year}</p>
-            <h1 className="text-[#19A297] font-semibold text-lg">داشبورد</h1>
-          </div>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black">
+            سامانه مرکزی مدیریت ارزیابی و توکن‌های مهارت
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+            از این بخش می‌توانید جریان امتیازات، توکن‌های اعطا شده، پرونده‌های ثبت‌نامی و درخواست‌های دوره‌ای را در سطح کل هنرستان پایش و مدیریت کنید.
+          </p>
         </div>
-
-        {/* بخش کارت‌های آماری */}
-        <div className="h-[20vh] mb-4 flex gap-5">
-          <div className="grid grid-cols-2 gap-[2vh] h-full w-[70%]">
-            {[
-              "توکن‌ استفاده‌شده",
-              "توکن‌ قابل‌ استفاده",
-              "پاداش‌ پرداخت‌شده",
-              "درخواست‌ تأییدشده",
-            ].map((title, idx) => (
-              <div key={idx} className="relative bg-orange-300 rounded-lg overflow-hidden h-[9vh] p-8 flex items-center justify-center gap-8">
-                <img src={frame6} className="absolute z-0 h-full w-full object-cover top-0" alt="" />
-                <h2 className="text-[#202A5A] font-semibold text-xl z-10">{title}</h2>
-                <p className="text-[#202A5A] font-bold text-2xl z-10">12,300</p>
-              </div>
-            ))}
-          </div>
-
-          {/* کارت مجموع امتیازات */}
-          <div className="relative h-full w-[30%] rounded-lg overflow-hidden p-4 flex flex-col justify-between items-center">
-            <img src={frame156} className="absolute z-0 h-full w-full object-cover top-0" alt="" />
-            <div className="bg-[#202A5A] z-10 flex justify-center items-center w-14 h-14 rounded-full">
-              <FaMedal className="scale-150 text-white" />
-            </div>
-            <p className="text-[#202A5A] font-bold text-3xl z-10">22,951</p>
-            <h2 className="text-[#202A5A] text-xl z-10">جمع کل امتیازات</h2>
-          </div>
-        </div>
-
-        {/* جدول درخواست‌های جدید */}
-        <div className="w-full mb-4 flex gap-[2vh] h-[20vh]">
-          {[1, 2].map((_, idx) => (
-            <table key={idx} className="w-1/2 h-full border-2 border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-[#19A297] text-white h-[5vh]">
-                <tr>
-                  <th className="text-right pr-2 py-2"></th>
-                  <th className="text-right pr-2 py-2"></th>
-                  <th className="text-right pr-2 py-2">درخواست‌های جدید</th>
-                </tr>
-
-              </thead>
-              <tbody>
-                {["رضا احمدی", "سارا محمدی", "علی رضایی"].map((name, i) => (
-                  <tr key={i} className={`w-full h-[5vh] ${i % 2 !== 0 ? "bg-gray-100" : ""} border-b border-gray-200 text-right`}>
-                    <td className="text-left pl-2">
-                      <Link to="/" className="text-[#19A297] hover:underline">مشاهده</Link>
-                    </td>
-                    <td className="text-gray-400 text-xs">امروز {week} {day} {month} ماه، {year}</td>
-                    <td className="pr-2 text-[#202A5A]">{name}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ))}
-        </div>
-
-        {/* جدول پایه‌های مختلف */}
-        <div className="w-full flex gap-[2vh] mb-4 h-[30vh]">
-          {[
-            { grade: "پایــه دوازدهــم", code: 301 },
-            { grade: "پایــه یازدهــم", code: 201 },
-            { grade: "پایــه دهــم", code: 101 },
-          ].map((item, idx) => (
-            <table key={idx} className="w-1/3 h-[25vh] border-2 border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-[#202A5A] text-white h-[5vh]">
-                <tr>
-                  <th className='flex text-right justify-start pl-2  w-full py-2'>
-                    <p className="text-gray-400 text-xs">مشاهده همه</p>
-                  </th>
-                  <th className="text-right"></th>
-                  <th className="flex text-right justify-end pr-2  w-full py-2">
-                    {item.grade}
-                  </th>
-                </tr>
-
-              </thead>
-              <tbody>
-                {["رضا احمدی", "سارا محمدی", "علی رضایی", "سارا محمدی", "علی رضایی"].map((name, i) => (
-                  <tr key={i} className={`w-full h-[5vh] ${i % 2 !== 0 ? "bg-gray-100" : ""} border-b border-gray-200 text-right`}>
-                    <td className="text-left pl-2">
-                      <Link to="/" className="text-[#19A297] hover:underline">780</Link>
-                    </td>
-                    <td className="text-gray-400 text-xs">({item.code})</td>
-                    <td className="pr-2 text-[#19A297]">{name}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ))}
-        </div>
-
-        {/* میانگین امتیازات */}
-        <div className="w-full flex gap-[2vh] h-[30vh]">
-          {[1, 2, 3].map((_, i) => (
-            <div key={i} className="w-1/3 h-[7vh] px-3 flex justify-between items-center border-2 border-[#202A5A] rounded-lg">
-              <p className="text-[#202A5A]">220</p>
-              <h4 className="text-[#202A5A]">میانگین امتیازات</h4>
-            </div>
-          ))}
-        </div>
-
       </div>
-    </>
+
+      {/* Primary KPI Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="کل امتیازات در گردش"
+          value={toPersianDigits(stats.systemOverallStudentTokens || 0)}
+          unit="امتیاز"
+          icon={TrendingUp}
+          persona="ecosystem"
+        />
+        <StatCard
+          title="توکن‌های فعال و قابل استفاده"
+          value={toPersianDigits(stats.systemTotalAvailableTokens || 0)}
+          unit="توکن"
+          icon={Coins}
+          persona="college"
+        />
+        <StatCard
+          title="پاداش‌های پرداخت‌شده"
+          value={toPersianDigits(stats.rewardsPaidValue || 0)}
+          unit="توکن"
+          icon={Gift}
+          persona="club"
+        />
+        <StatCard
+          title="درخواست‌های در انتظار بررسی"
+          value={toPersianDigits(stats.rewardsPendingValue || 0)}
+          unit="مورد"
+          icon={Clock}
+          persona="female"
+        />
+      </div>
+
+      {/* Fast Excel & Management Actions */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-black text-[#202A5A] dark:text-white">
+              دستورات سریع بارگذاری و پیکربندی
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              مدیریت انبوه داده‌ها با ایمپورت فایل‌های اکسل استاندارد
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={idx}
+                to={action.to}
+                className="rokad-card p-5 group flex flex-col justify-between hover:border-[#202A5A] dark:hover:border-[#59BBAF] transition-all"
+              >
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-[#202A5A] dark:text-[#59BBAF] group-hover:scale-105 transition-transform">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#202A5A] dark:text-white group-hover:text-[#59BBAF] transition-colors">
+                      {action.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      {action.desc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-[#202A5A] dark:text-[#59BBAF]">
+                  <span>ورود به بخش</span>
+                  <ArrowUpRight className="w-4 h-4 group-hover:translate-x-[-2px] group-hover:translate-y-[-2px] transition-transform" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Grade Rankings Link Banner */}
+      <RokadCard
+        title="پایش و تحلیل رتبه‌بندی پایه‌ها"
+        subtitle="مشاهده جدول امتیازات دهم، یازدهم و دوازدهم به تفکیک دسته‌بندی‌های مهارتی"
+        badge="تحلیل کارنامه"
+        persona="male"
+        action={
+          <Link to="/results">
+            <RokadButton variant="primary" size="sm">
+              <Table className="w-4 h-4 ml-1.5" />
+              مشاهده جداول کامل رتبه‌ها
+            </RokadButton>
+          </Link>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 space-y-1">
+            <span className="text-xs font-bold text-[#202A5A] dark:text-white">پایه دهم</span>
+            <p className="text-xs text-gray-500 dark:text-gray-400">کلاس‌های ۱۰۱، ۱۰۲، ۱۰۳</p>
+            <p className="text-xs font-black text-[#59BBAF] pt-2">مشاهده کارنامه جامع &larr;</p>
+          </div>
+          <div className="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 space-y-1">
+            <span className="text-xs font-bold text-[#202A5A] dark:text-white">پایه یازدهم</span>
+            <p className="text-xs text-gray-500 dark:text-gray-400">کلاس‌های ۲۰۱، ۲۰۲، ۲۰۳</p>
+            <p className="text-xs font-black text-[#59BBAF] pt-2">مشاهده کارنامه جامع &larr;</p>
+          </div>
+          <div className="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 space-y-1">
+            <span className="text-xs font-bold text-[#202A5A] dark:text-white">پایه دوازدهم</span>
+            <p className="text-xs text-gray-500 dark:text-gray-400">کلاس‌های ۳۰۱، ۳۰۲، ۳۰۳</p>
+            <p className="text-xs font-black text-[#59BBAF] pt-2">مشاهده کارنامه جامع &larr;</p>
+          </div>
+        </div>
+      </RokadCard>
+    </div>
   );
 }

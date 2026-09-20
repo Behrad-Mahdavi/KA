@@ -1,71 +1,88 @@
-// =========================================================================
-// RewardApprovalModal.jsx (کامل)
-// =========================================================================
-import React, { useMemo } from 'react'; // useState و useEffect دیگر لازم نیست چون پراپ‌ها را می‌گیرد
-import { IoClose } from 'react-icons/io5';
+import React, { useMemo } from 'react';
+import RokadModal from '../../../Components/UI/RokadModal';
+import RokadButton from '../../../Components/UI/RokadButton';
+import { formatToJalali, toPersianDigits } from '../../../Utils/utils';
+import { CheckCircle2, XCircle, Gift, Coins, Calendar, User } from 'lucide-react';
 
-// کامپوننت کوچک برای نمایش فیلدهای فرم
-const DisplayField = ({ label, value, fullWidth = false }) => (
-    <div className={`mb-5 ${fullWidth ? 'col-span-2' : ''}`}>
-        <label className="block text-xs text-gray-500 text-right mb-1">{label}</label>
-        <div className="bg-gray-50 p-3 rounded-md border-b-2 border-gray-200 text-right shadow-sm"> {/* استایل کمی بهتر */}
-            <span className="text-indigo-700 font-semibold text-sm">{value || ' - '}</span> {/* مقدار پیش‌فرض اگر خالی بود */}
+export default function RewardApprovalModal({ isOpen, onClose, rewardData, onConfirm, submitting = false }) {
+  const paymentApprovalDate = useMemo(() => formatToJalali(new Date(), { showMonthName: true, includeDayName: true }), [isOpen]);
+
+  if (!isOpen || !rewardData) return null;
+
+  return (
+    <RokadModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="بررسی و تایید تحویل پاداش"
+      subtitle={rewardData.rewardTitle || rewardData.title}
+      maxWidth="max-w-lg"
+    >
+      <div className="space-y-4">
+        {/* Info Grid */}
+        <div className="p-4 rounded-2xl bg-gray-50 dark:bg-[#1C2536] border border-gray-100 dark:border-gray-800 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">دانش‌آموز:</span>
+            <span className="font-bold text-[#202A5A] dark:text-white">
+              {rewardData.userName || rewardData.name} ({rewardData.userGrade ? `پایه ${rewardData.userGrade}` : 'دانش‌آموز'})
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">پاداش انتخابی:</span>
+            <span className="font-bold text-[#59BBAF]">
+              {rewardData.rewardTitle || rewardData.title}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">ارزش توکن:</span>
+            <span className="font-black text-amber-600 dark:text-amber-400">
+              {toPersianDigits(rewardData.tokenAmountRequired || rewardData.tokenAmount || 0)} توکن
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 dark:border-gray-700">
+            <span className="text-gray-500">تاریخ ثبت درخواست:</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              {rewardData.submissionDate || 'نامشخص'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">تاریخ بررسی (امروز):</span>
+            <span className="font-bold text-[#202A5A] dark:text-white">
+              {paymentApprovalDate}
+            </span>
+          </div>
         </div>
-    </div>
-);
 
-export default function RewardApprovalModal({ isOpen, onClose, rewardData, onConfirm }) {
-    // تاریخ امروز برای نمایش به عنوان تاریخ پرداخت (اگر تایید شود)
-    const paymentApprovalDate = useMemo(() =>
-        new Intl.DateTimeFormat('fa-IR', { dateStyle: 'long' }).format(new Date())
-    , [isOpen]); // فقط وقتی مودال باز می‌شود محاسبه شود
-
-    if (!isOpen || !rewardData) return null;
-
-    // نام دانش‌آموز با پایه (اگر وجود دارد)
-    const displayName = `${rewardData.userName || 'دانش‌آموز نامشخص'} ${rewardData.userGrade ? `(${rewardData.userGrade})` : ''}`;
-
-    return (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[70] p-4" dir="rtl"> {/* z-index بیشتر شد */}
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 sm:p-8 relative animate-modalShow transform transition-all duration-300 ease-out">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 left-4 text-gray-500 hover:text-red-600 p-1.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-                    aria-label="بستن"
-                >
-                    <IoClose size={24} />
-                </button>
-
-                <h2 className="text-xl sm:text-2xl font-bold text-center text-indigo-700 mb-6 sm:mb-8">
-                    فرم تایید درخواست پاداش
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
-                    <DisplayField label="تاریخ ثبت درخواست" value={rewardData.submissionDate || 'نامشخص'} />
-                    <DisplayField label="نام و نام‌خانوادگی دانش‌آموز" value={displayName} />
-                    <DisplayField label="عنوان پاداش درخواستی" value={rewardData.rewardTitle || 'نامشخص'} fullWidth={true} />
-                    {rewardData.rewardDescription && (
-                        <DisplayField label="شرح پاداش" value={rewardData.rewardDescription} fullWidth={true} />
-                    )}
-                    <DisplayField label="تاریخ تایید/پرداخت (امروز)" value={paymentApprovalDate} />
-                    <DisplayField label="تعداد توکن درخواستی" value={rewardData.tokenAmountRequired ? `${rewardData.tokenAmountRequired.toLocaleString('fa-IR')} توکن` : 'نامشخص'} />
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 justify-center">
-                    <button
-                        onClick={() => onConfirm(rewardData.studentRewardId, 'rejected')}
-                        className="w-full sm:w-auto order-2 sm:order-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 px-8 rounded-lg transition duration-150 ease-in-out shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                    >
-                        رد کردن درخواست
-                    </button>
-                    <button
-                        onClick={() => onConfirm(rewardData.studentRewardId, 'approved')}
-                        className="w-full sm:w-auto order-1 sm:order-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg transition duration-150 ease-in-out shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                    >
-                        تایید و پرداخت پاداش
-                    </button>
-                </div>
-            </div>
+        {/* Note */}
+        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300">
+          تایید این درخواست به منزله تحویل فیزیکی یا فعال‌سازی جایزه برای دانش‌آموز است. در صورت رد، توکن‌های کسر شده بلافاصله به حساب دانش‌آموز مسترد خواهد شد.
         </div>
-    );
+
+        {/* Actions */}
+        <div className="pt-2 flex items-center gap-3">
+          <RokadButton
+            variant="primary"
+            onClick={() => onConfirm(rewardData.studentRewardId || rewardData.id, 'approved')}
+            loading={submitting}
+            icon={CheckCircle2}
+            className="flex-1"
+          >
+            تایید و ثبت تحویل پاداش
+          </RokadButton>
+
+          <RokadButton
+            variant="danger"
+            onClick={() => onConfirm(rewardData.studentRewardId || rewardData.id, 'rejected')}
+            loading={submitting}
+            icon={XCircle}
+          >
+            رد و بازگشت توکن
+          </RokadButton>
+        </div>
+      </div>
+    </RokadModal>
+  );
 }

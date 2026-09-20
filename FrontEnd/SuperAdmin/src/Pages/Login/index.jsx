@@ -1,101 +1,145 @@
-import React, { useContext } from 'react'
-import union from '../../assets/images/Union.png'
-import union2 from '../../assets/images/Union2.png'
-import union3 from '../../assets/images/Union3.png'
-import KAlogo from '../../assets/images/K-Logo.png'
-import useFormFields from '../../Utils/useFormFields'
-import fetchData from '../../Utils/fetchData'
-import { toast } from 'sonner'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { AuthContext } from '../../Utils/AuthContext'
-
+import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { ShieldAlert, User, Lock, ArrowLeft, Sun, Moon } from 'lucide-react';
+import { AuthContext } from '../../Utils/AuthContext';
+import { useTheme } from '../../Utils/ThemeContext';
+import fetchData from '../../Utils/fetchData';
+import useFormFields from '../../Utils/useFormFields';
+import RokadButton from '../../Components/UI/RokadButton';
 
 export default function Login() {
-    const [fields,handleChange]=useFormFields()
-    const {handleAuth}=useContext(AuthContext)
+  const [fields, handleChange] = useFormFields();
+  const { handleAuth } = useContext(AuthContext);
+  const { theme, toggleTheme } = useTheme();
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-
-    
-    const navigate=useNavigate()
-    const handleSubmit=async(e)=>{
-        e.preventDefault()
-        try {
-            const res=await fetchData('auth',{
-                method:"POST",
-                headers:{
-                    "content-type" : "application/json"
-                },
-                body:JSON.stringify(fields)
-            })
-
-            if(res?.data?.user?.role !== "superAdmin"){
-                toast.error("شما دسترسی به پنل سوپرادمین ندارید")
-                return
-            }
-            if(res.success && res?.data?.token){
-                toast.success(res.message || "ورود با موفقیت انجام شد")
-                handleAuth(res.data.token, res.data.user)
-                localStorage.setItem("token", res.data.token)
-                localStorage.setItem("user", JSON.stringify(res.data.user))
-                navigate('/')
-            } else {
-                toast.error(res.message || "اطلاعات ورود نادرست است")
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error("خطا در برقراری ارتباط با سرور")
-        }
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!fields.idCode || !fields.password) {
+      toast.error('لطفاً نام کاربری و رمز عبور را وارد فرمایید.');
+      return;
     }
 
-    return (
-        <div className='flex w-full h-screen'>
-            <div className="w-[45%] h-full overflow-hidden relative bg-black bg-linear-to-t from-[#19A297] to-[#59BBAF]">
-                <img className='absolute  bottom-10 right-[-110px] scale-140'
-                    src={union} alt="" />
-                <img className='absolute scale-60 left-[-100px] bottom-0'
-                    src={union2} alt="" />
-                <img className='absolute left-[70px]'
-                    src={union3} alt="" />
-                <div className="absolute left-15 bottom-40">
-                    <h2 className='text-white text-4xl font-gilory'>Welcome To</h2>
-                    <h1 className='text-white text-5xl font-bold-gilory'
-                    >KA Platform</h1>
-                </div>
-            </div>
+    setLoading(true);
+    try {
+      const res = await fetchData('auth', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(fields),
+      });
 
-            <div className="flex w-[55%] items-center justify-center">
-                <div className='p-10 w-100 mx-auto rounded shadow-[0_0px_10px_rgba(0,0,0,0.15)]'>
-                    <div className="flex gap-2 justify-center items-center mb-10">
-                        <div className="flex-column justify-items-center items-center ">
-                            <h3 className='text-[#59BBAF] text-3xl font-semibold'>پلتـفرم کــا</h3>
-                            <p className='text-[#59BBAF] text-xs'>سیستم جامع ارزیابی و پاداش</p>
-                        </div>
-                        <div className="rounded-[15px] flex justify-items-center items-center p-2 w-16 h-16 bg-[#59BBAF]">
-                            <img src={KAlogo} className='scale-50' alt="" />
-                        </div>
-                    </div>
-                    <form onSubmit={handleSubmit} className="flex-column">
-                        <p className='font-semibold mb-8 text-gray-400 text-right'>!سلام</p>
-                        <div className="relative mb-8">
-                            <p className='text-gray-300 bg-white px-2 absolute right-5 top-[-10px] rounded-lg'>نام کاربری</p>
-                        <input type="text" 
-                        name='idCode'
-                        onChange={handleChange}
-                        className='outline-none border-2 rounded w-full px-4 py-5 border-gray-100  ' />
-                        </div>
-                        <div className="relative mb-8">
-                            <p className='text-gray-300 bg-white px-2 absolute right-5 rounded-lg top-[-10px]'>رمز عبور</p>
-                        <input type="password" 
-                        name='password'
-                        onChange={handleChange}
-                        className='outline-none border-2 rounded w-full px-4 py-5 border-gray-100 ' />
-                        </div>
-                        <button type='submit' className='w-full bg-[#59BBAF] font-semibold py-5 rounded text-white cursor-pointer'>ورود</button>
-                    </form>
-                </div>
-            </div>
+      if (res?.data?.user?.role !== 'superAdmin') {
+        toast.error('دسترسی مجاز نیست. این پرتال منحصراً ویژه راهبران ارشد سامانه (SuperAdmin) می‌باشد.');
+        setLoading(false);
+        return;
+      }
+
+      if (res.success && res?.data?.token) {
+        toast.success(res.message || 'ورود مدیریت ارشد با موفقیت انجام شد');
+        handleAuth(res.data.token, res.data.user);
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        navigate('/');
+      } else {
+        toast.error(res.message || 'اطلاعات ورود نادرست است');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('خطا در برقراری ارتباط با سرور');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F8F9FA] dark:bg-[#0B0F17] transition-colors relative">
+      {/* Floating Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-4 left-4 p-2.5 rounded-xl border-2 border-[#202A5A] dark:border-[#59BBAF]/40 bg-white dark:bg-[#1E2640] rokad-shadow text-gray-700 dark:text-gray-300 hover:border-[#59BBAF] transition"
+        title="تغییر حالت شب و روز"
+      >
+        {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-[#202A5A]" />}
+      </button>
+
+      <div className="w-full max-w-md bg-white dark:bg-[#1E2640] rounded-2xl border-2 border-[#202A5A] dark:border-[#59BBAF]/30 p-6 sm:p-8 rokad-shadow space-y-6">
+        {/* Brand Header */}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-2xl bg-[#202A5A] text-[#E0195B] border-2 border-[#202A5A] flex items-center justify-center mx-auto rokad-shadow">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-[#E0195B] text-white border border-[#E0195B]/30">
+            پرتال نظارت و مدیریت عالی سیستم
+          </span>
+          <h1 className="text-2xl font-black text-[#202A5A] dark:text-white">
+            ورود راهبر ارشد
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            مدیریت پایه‌ای، ثبت‌نام انبوه و تنظیمات کلان پلتفرم رُکاد
+          </p>
         </div>
-    )
-}
 
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 text-right">
+              نام کاربری / کد ملی راهبر
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="idCode"
+                value={fields.idCode || ''}
+                onChange={handleChange}
+                placeholder="مثلاً: 0920000000"
+                className="w-full rokad-input rounded-xl pr-10 text-xs sm:text-sm bg-white dark:bg-[#151D2A]"
+                required
+              />
+              <User className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 text-right">
+              رمز عبور امنیتی
+            </label>
+            <div className="relative">
+              <input
+                type="password"
+                name="password"
+                value={fields.password || ''}
+                onChange={handleChange}
+                placeholder="••••••••"
+                className="w-full rokad-input rounded-xl pr-10 text-xs sm:text-sm bg-white dark:bg-[#151D2A]"
+                required
+              />
+              <Lock className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <RokadButton
+              type="submit"
+              disabled={loading}
+              variant="primary"
+              className="w-full py-3.5 flex items-center justify-center gap-2"
+            >
+              <span>{loading ? 'در حال تایید اعتبار...' : 'ورود به پنل مرکزی SuperAdmin'}</span>
+              <ArrowLeft className="w-4 h-4" />
+            </RokadButton>
+          </div>
+        </form>
+
+        <div className="pt-4 border-t border-gray-100 dark:border-white/5 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            مرکز توسعه فناوری و ارزیابی شایستگی &bull; هنرستان استارتاپی رُکاد
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

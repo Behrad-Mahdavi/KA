@@ -1,155 +1,136 @@
-// components/Admin/Sidebar.jsx (نسخه نهایی و واکنش‌گرا)
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  PlusCircle,
+  ClipboardCheck,
+  Gift,
+  Trophy,
+  FileSpreadsheet,
+  X,
+  ShieldCheck
+} from 'lucide-react';
+import { cn } from '../Utils/utils';
 
-import React, { useState } from "react";
-import KAlogo from '../assets/images/K-LogoGreen.png';
-import aziz from '../assets/images/aziz.png';
-import frame1 from '../assets/images/Frame1.png';
-
-import { TbPencilPlus } from "react-icons/tb";
-import { BsFillGridFill } from "react-icons/bs";
-import { LuMails } from "react-icons/lu";
-import { FaMedal } from "react-icons/fa";
-import { MdBackupTable } from "react-icons/md";
-import { IoIosArrowForward, IoIosArrowBack } from "react-icons/io";
-import { SlArrowDown, SlArrowUp } from "react-icons/sl";
-import { Link, useLocation } from "react-router-dom";
-
-export default function Sidebar({ getOpen }) {
-  const user = {
-    fullName: "علیرضا عزیزپور",
-    role: "مدیر سامانه",
-  };
-
-  const [open, setOpen] = useState(true);
-  const [openProfile, setOpenProfile] = useState(false);
-  
-
-  const handleOpen = () => {
-    const newOpenState = !open;
-    setOpen(newOpenState);
-    if (getOpen) {
-      getOpen(newOpenState);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
-  };
-
-  const menuItems = [
-    { num: 1, to: "/", text: "داشبورد", icon: <BsFillGridFill /> },
-    { num: 2, to: "/add-data", text: "ثبت اطلاعات", icon: <TbPencilPlus /> },
-    { num: 3, to: "/requests", text: "درخواست‌ها", icon: <LuMails /> },
-    { num: 4, to: "/rewards", text: "پاداش‌ها", icon: <FaMedal /> },
-    { num: 5, to: "/results", text: "گزارشات", icon: <MdBackupTable /> },
-  ];
-
+export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
 
-  const ITEM_HEIGHT = 56;
-  const activeIndex = menuItems.findIndex(item => location.pathname === item.to);
-  // اضافه کردن یک شرط برای مسیرهای تودرتو مثل /add-data/create
-  const parentPath = "/" + location.pathname.split('/')[1];
-  const activeParentIndex = menuItems.findIndex(item => item.to === parentPath);
+  const menuItems = [
+    { to: '/', label: 'داشبورد مدیریت', icon: LayoutDashboard },
+    { to: '/add-data', label: 'ثبت اطلاعات و فعالیت', icon: PlusCircle, matches: ['/add-data'] },
+    { to: '/requests', label: 'بررسی درخواست‌ها', icon: ClipboardCheck },
+    { to: '/rewards', label: 'مدیریت پاداش‌ها', icon: Gift },
+    { to: '/results', label: 'گزارش‌ها و رتبه‌بندی', icon: Trophy },
+    { to: '/exel', label: 'بارگذاری اکسل', icon: FileSpreadsheet },
+  ];
 
-  const finalActiveIndex = activeIndex !== -1 ? activeIndex : activeParentIndex;
-  const indicatorY = finalActiveIndex !== -1 ? finalActiveIndex * ITEM_HEIGHT : -ITEM_HEIGHT;
+  const isLinkActive = (item) => {
+    if (item.matches) {
+      return item.matches.some(path => location.pathname === path || location.pathname.startsWith(path));
+    }
+    return location.pathname === item.to;
+  };
 
-  return (
-    // <<< تغییر ۱: container اصلی به flex-col تبدیل شد >>>
-    <div className={`flex flex-col right-0 h-screen transition-all duration-500 ease-in-out bg-[#F9F9F9] ${ open ? "w-[20%]" : "w-[6%]" }`}>
-      
-      {/* بخش هدر سایدبار - flex-shrink-0 برای جلوگیری از کوچک شدن */}
-      <div className="w-full h-[21vh] flex-shrink-0 flex justify-center relative items-center bg-gradient-to-r from-[#19A297] to-[#59BBAF]">
-        <img src={frame1} className="absolute z-0 h-full w-full object-cover top-[0]" alt="" />
-        
-        <div onClick={handleOpen} className="w-8 h-8 z-30 rounded-full flex items-center justify-center absolute top-5 left-[-16px] cursor-pointer bg-white shadow-md">
-          {open ? <IoIosArrowForward className="text-gray-600" /> : <IoIosArrowBack className="text-gray-600" />}
-        </div>
-        
-        {/* کارت پروفایل، لوگو و ... داخل هدر باقی می‌مانند */}
-        <div className={`flex z-10 gap-2 justify-center items-center absolute top-8 ${!open ? "hidden" : ""}`}>
-          <div className="flex flex-col justify-center items-end">
-            <h3 className="text-white text-xl font-bold">پلتفرم کا</h3>
-            <p className="text-white text-[0.6rem] opacity-70">سیستم جامع ارزیابی و پاداش</p>
+  const SidebarContent = (
+    <div className="flex flex-col h-full bg-white dark:bg-[#121824] border-l border-gray-200/80 dark:border-gray-800 transition-colors">
+      {/* Brand Header */}
+      <div className="h-16 sm:h-20 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#202A5A] to-[#182044] dark:from-[#2B3875] dark:to-[#1D2651] flex items-center justify-center text-white shadow-[2px_2px_0_#59BBAF]">
+            <ShieldCheck className="w-5 h-5 text-[#59BBAF]" />
           </div>
-          <div className="rounded-lg flex justify-center items-center p-2 w-12 h-12 bg-white">
-            <img src={KAlogo} className="scale-75" alt="logo" />
+          <div>
+            <div className="font-black text-sm text-[#202A5A] dark:text-white tracking-tight">
+              سامانه رُکاد
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E9EAEF] dark:bg-[#0B0F1F]/60 text-[#202A5A] dark:text-gray-300 border border-[#202A5A]/20">
+              پنل دبیران و معاونان
+            </span>
           </div>
         </div>
 
+        {/* Mobile Close Button */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer"
+          aria-label="بستن منو"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* <<< تغییر ۲: این div جدید برای جدا کردن پروفایل از منوها است >>> */}
-      {/* این بخش اجازه می‌دهد پروفایل روی هدر و منو شناور باشد */}
-      <div className="relative w-full h-24 flex-shrink-0">
-          {/* کارت پروفایل ادمین (حالت باز) */}
-          <div className={`absolute z-20 top-[-35px] left-0 right-0 mx-auto ${!open ? "hidden" : ""} rounded-lg bg-white shadow-sm transition-all duration-500 w-[85%] overflow-hidden flex flex-col`}>
-              <div className="flex justify-between items-center w-full py-3 px-3 gap-2">
-                  <button onClick={() => setOpenProfile(!openProfile)} className="p-1">
-                      {openProfile ? <SlArrowUp className="scale-75 text-gray-400" /> : <SlArrowDown className="scale-75 text-gray-400" />}
-                  </button>
-                  <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1 text-end">
-                          <h3 className="text-sm font-semibold text-gray-800">{user.fullName}</h3>
-                          <h5 className="text-[11px] text-gray-500">{user.role}</h5>
-                      </div>
-                      <div className="w-11 h-11 flex-shrink-0">
-                          <img src={aziz} className="w-11 h-11 rounded-full" alt="avatar" />
-                      </div>
-                  </div>
-              </div>
-              {openProfile && (
-                  <div className="w-full px-3 pb-3">
-                  <button onClick={handleLogout} className="w-full h-10 rounded-md bg-red-500 text-white flex justify-center items-center hover:bg-red-600 cursor-pointer">
-                      خروج از حساب
-                  </button>
-                  </div>
-              )}
-          </div>
+      {/* Nav Menu */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
+        <div className="text-[11px] font-bold text-gray-400 dark:text-gray-400 px-3 mb-2">
+          میز مدیریت
+        </div>
 
-          {/* آیکون پروفایل در حالت بسته */}
-          <div className={`absolute z-20 top-[-50px] left-0 right-0 mx-auto ${open ? "hidden" : ""} rounded-lg bg-white shadow-sm p-2 w-max`}>
-              <div className="w-11 h-11">
-                  <img src={aziz} className="w-11 h-11 rounded-full" alt="avatar" />
-              </div>
-          </div>
-      </div>
-      
-      {/* <<< تغییر ۳: flex-grow باعث می‌شود این بخش بقیه فضا را پر کند >>> */}
-      {/* و mt-24 حذف شد */}
-      <div className="relative w-full flex-grow overflow-y-auto scrollbar-thin">
-        {/* نشانگر متحرک */}
-        <div className="absolute right-0 h-14 w-1.5 bg-[#19A297] z-10 transition-transform duration-300 ease-in-out"
-          style={{ transform: `translateY(${indicatorY}px)` }}
-        ></div>
-        {/* آیتم‌های منو */}
         {menuItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.to) && (item.to !== '/' || location.pathname === '/');
+          const active = isLinkActive(item);
+          const Icon = item.icon;
+
           return (
-            <Link key={item.num} to={item.to}
-              className={`relative flex items-center h-14 transition-colors duration-200 ${open ? "justify-end pr-8" : "justify-center"} ${isActive ? "text-[#19A297] font-semibold" : "text-gray-400 hover:bg-gray-200/50"} ${isActive && !open ? "bg-teal-500/10" : ""}`}
-            >
-              {isActive && open && (
-                <div className="absolute inset-0 bg-gradient-to-l from-white to-[#F9F9F9]"></div>
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={onClose}
+              className={cn(
+                'flex items-center justify-between px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all',
+                active
+                  ? 'bg-[#EEF8F7] dark:bg-[#1F413D]/60 text-[#1F413D] dark:text-[#EEF8F7] border border-[#59BBAF]/40 shadow-[2.5px_2.5px_0_#59BBAF]'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1C2536] hover:text-[#202A5A] dark:hover:text-white'
               )}
-              <div className={`relative z-10 flex items-center ${open ? "gap-3" : "gap-0"}`}>
-                <h4 className={`text-base whitespace-nowrap transition-all duration-200 ${open ? "opacity-100" : "w-0 opacity-0"}`}>{item.text}</h4>
-                <div className="text-xl">{item.icon}</div>
+            >
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={cn(
+                    'w-4 h-4 sm:w-5 sm:h-5 transition-colors',
+                    active ? 'text-[#59BBAF]' : 'text-gray-400'
+                  )}
+                />
+                <span>{item.label}</span>
               </div>
+              {active && (
+                <span className="w-1.5 h-4 rounded-full bg-[#59BBAF]" />
+              )}
             </Link>
           );
         })}
       </div>
-      
-      {/* دکمه تنظیمات (فوتر) */}
-      <div className={`p-4 flex-shrink-0 mb-[14vh] ${!open ? "hidden" : ""}`}>
-        <button className="w-full py-2.5 rounded-lg bg-[#19A297] text-white font-semibold text-base hover:bg-[#148b80] transition-colors">
-          تنظیمات
-        </button>
+
+      {/* Quick Helper Banner */}
+      <div className="p-4 m-4 rounded-2xl bg-gray-50 dark:bg-[#151C28] border border-gray-200/80 dark:border-gray-800 text-xs">
+        <span className="font-bold text-[#202A5A] dark:text-white block mb-1">
+          پشتیبانی مدرسه
+        </span>
+        <p className="text-gray-400 text-[11px] leading-relaxed">
+          کلیه امتیازات ثبت‌شده بلافاصله در رتبه‌بندی لحظه‌ای هنرستان محاسبه می‌شوند.
+        </p>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden lg:block w-64 sm:w-72 h-screen sticky top-0 flex-shrink-0 z-40">
+        {SidebarContent}
+      </aside>
+
+      {/* Mobile Drawer (Slide-over) */}
+      {isOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={onClose}
+          />
+          {/* Drawer Box */}
+          <div className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10 animate-in slide-in-from-right duration-200">
+            {SidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -1,50 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #59BBAF;
+  --color-girl: #E0195B;
+  --color-third: #F8A41D;
+  --color-sec: #202A5A;
+  --color-club: #652D90;
 
-/* @theme {
-    --color-rabbit-red: oklch(60.61% 0.2249 31.67)
-  } */
-  /* "#ea2e0e" */
+  --color-ecosystem-light: #EEF8F7;
+  --color-ecosystem-normal: #59BBAF;
+  --color-ecosystem-dark: #438C83;
+  --color-ecosystem-darker: #1F413D;
 
-  @font-face {
-    font-family: gilory;
-    font-style: normal;
-    src: url("/src/assets/fonts/Gilroy-Medium.ttf") ,
-  }
-  @font-face {
-    font-family: boldgilory;
-    src: url("/src/assets/fonts/Gilroy-ExtraBold.ttf"),
-  }
-  @font-face {
-    font-family: iransans;
-    src: url("/src/assets/fonts/IRANSansXFaNum-MediumD4.ttf"),
-  }
-#root{
-    font-family: "inter",sans-serif,"boldgilory";
-    font-optical-sizing: auto;
-    font-style: normal;
-}
-#root{
-  font-family: iransans;
-}
-.font-bold-gilory{
-  font-family: boldgilory !important;
-}
-.font-gilory{
-  font-family: gilory !important;
-}
-h1{
-  /* font-family: boldgilory; */
-  font-family: iransans;
+  --color-male-light: #E9EAEF;
+  --color-male-normal: #202A5A;
+  --color-male-dark: #182044;
+  --color-male-darker: #0B0F1F;
 
-}
-h3,h5,li,p,a,div,th{
-  font-family: iransans;
-}
-button{
-  font-family: iransans;
+  --color-female-light: #FCE8EF;
+  --color-female-normal: #E0195B;
+  --color-female-dark: #A81344;
+  --color-female-darker: #4E0920;
+
+  --color-college-light: #FEF6E8;
+  --color-college-normal: #F8A41D;
+  --color-college-dark: #BA7B16;
+  --color-college-darker: #57390A;
+
+  --color-club-light: #F0EAF4;
+  --color-club-normal: #652D90;
+  --color-club-dark: #4C226C;
+  --color-club-darker: #231032;
+
+  --color-ink-light: #EAEAE9;
+  --color-ink-normal: #292827;
+  --color-ink-dark: #1F1E1D;
+  --color-ink-darker: #0E0E0E;
+
+  --color-accent-green: #009966;
+  --color-accent-red: #C60036;
+  --color-accent-purple: #8A38F5;
+
+  --font-vazir: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --shadow-ecosystem: 2.75px 2.75px 0 #59BBAF;
+  --shadow-male: 2.75px 2.75px 0 #202A5A;
+  --shadow-female: 2.75px 2.75px 0 #E0195B;
+  --shadow-college: 2.75px 2.75px 0 #F8A41D;
+  --shadow-club: 2.75px 2.75px 0 #652D90;
+  --shadow-hard-sm: 2px 2px 0 rgba(41, 40, 39, 0.8);
+  --shadow-hard-lg: 4px 4px 0 #202A5A;
 }
 
-.rtl{
+:root {
+  --color-primary: #59BBAF;
+  --color-girl: #E0195B;
+  --color-third: #F8A41D;
+  --color-sec: #202A5A;
+  --text-normal: #292827;
+}
+
+html {
+  font-size: 14px;
   direction: rtl;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 14.5px;
+  }
+}
+
+body {
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  background-color: #F8F9FA;
+  color: var(--text-normal);
+  direction: rtl;
+  text-align: right;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* کارت برند رُکاد */
+.rokad-card {
+  background: #FFFFFF;
+  border: 1.5px solid #EAEAEA;
+  border-radius: 16px;
+  box-shadow: 2.75px 2.75px 0 #202A5A;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.rokad-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 3.5px 3.5px 0 #202A5A;
+}
+
+/* دکمه اصلی سبز */
+.rokad-btn-primary {
+  background-color: #59BBAF;
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1.5px solid #438C83;
+  border-radius: 12px;
+  box-shadow: 2.5px 2.5px 0 #1F413D;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.rokad-btn-primary:hover {
+  background-color: #50A89E;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #1F413D;
+}
+.rokad-btn-primary:active {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 1px 1px 0 #1F413D;
+}
+.rokad-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* دکمه ثانویه سرمه‌ای */
+.rokad-btn-sec {
+  background-color: #202A5A;
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1.5px solid #182044;
+  border-radius: 12px;
+  box-shadow: 2.5px 2.5px 0 #0B0F1F;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.rokad-btn-sec:hover {
+  background-color: #1D2651;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #0B0F1F;
+}
+.rokad-btn-sec:active {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 1px 1px 0 #0B0F1F;
+}
+.rokad-btn-sec:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* دکمه اوت‌لاین */
+.rokad-btn-outline {
+  background-color: #FFFFFF;
+  color: #292827;
+  font-weight: 600;
+  border: 1.5px solid #DFDFDF;
+  border-radius: 12px;
+  box-shadow: 2px 2px 0 #BDBCBC;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.rokad-btn-outline:hover {
+  background-color: #F8F9FA;
+  border-color: #292827;
+  box-shadow: 2.5px 2.5px 0 #292827;
+}
+.rokad-btn-outline:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 #292827;
+}
+
+/* اینپوت استاندارد */
+.rokad-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid #E5E7EB;
+  background-color: #FAFAFA;
+  color: #292827;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  outline: none;
+}
+.rokad-input:focus {
+  border-color: #59BBAF;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(89, 187, 175, 0.2);
+}
+
+/* دارک مود */
+.dark {
+  color-scheme: dark;
+}
+.dark body {
+  background-color: #0B0F17;
+  color: #F1F5F9;
+}
+.dark .rokad-card {
+  background: #151C28;
+  border-color: #242F42;
+  box-shadow: 2.75px 2.75px 0 #59BBAF;
+}
+.dark .rokad-card:hover {
+  box-shadow: 3.5px 3.5px 0 #59BBAF;
+}
+.dark .rokad-btn-sec {
+  background-color: #2B3875;
+  border-color: #3F50A0;
+  box-shadow: 2.5px 2.5px 0 #59BBAF;
+}
+.dark .rokad-btn-outline {
+  background-color: #161D2A;
+  color: #F1F5F9;
+  border-color: #2D3A50;
+  box-shadow: 2px 2px 0 #0F172A;
+}
+.dark .rokad-input {
+  background-color: #1C2536;
+  border-color: #374151;
+  color: #F1F5F9;
+}
+.dark .rokad-input:focus {
+  border-color: #59BBAF;
+  background-color: #1C2536;
+  box-shadow: 0 0 0 2px rgba(89, 187, 175, 0.3);
+}
+
+/* اسکرول‌بار سفارشی */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F1F1;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4C4C4;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #111827;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+/* استایل پرینت */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+  :root, html, body, .dark, .dark body {
+    color-scheme: light !important;
+    background: #ffffff !important;
+    color: #0F172A !important;
+    font-size: 10.5pt !important;
+  }
+  aside, header, nav, .screen-only, .no-print {
+    display: none !important;
+  }
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }

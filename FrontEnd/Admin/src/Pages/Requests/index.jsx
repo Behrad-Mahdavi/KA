@@ -1,454 +1,378 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import fetchData from '../../Utils/fetchData';
-import union from '../../assets/images/Union4.png';
-import Frame10 from '../../assets/images/Frame10.png';
-import Frame11 from '../../assets/images/Frame11.png';
-
-import { BiSolidSchool } from "react-icons/bi";
-import { IoNotificationsOutline } from "react-icons/io5";
-import { IoIosArrowDown } from "react-icons/io";
-import { BsChatLeftText, BsClipboardCheck, BsClipboardX, BsClipboardData } from "react-icons/bs";
+import { toPersianDigits, formatToJalali } from '../../Utils/utils';
+import { toast } from 'sonner';
+import StatCard from '../../Components/UI/StatCard';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import RokadBadge from '../../Components/UI/RokadBadge';
 import RequestApprovalModal from './RequestApprovalModal';
-import NotificationPanel from '../../Components/NotificationPanel';
-import DynamicIcon from '../../Components/DynamicIcon';
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  AlertCircle
+} from 'lucide-react';
 
-export default function Requests({ Open }) {
-    const token = localStorage.getItem("token");
-    const date = new Date();
-    const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
-    const day = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(date);
-    const year = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(date)
-    const week = new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(date);
+export default function Requests() {
+  const token = localStorage.getItem("token");
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState(null);
+  const [stats, setStats] = useState({ pendingCount: 0, approvedCount: 0, totalRequests: 0 });
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('pending'); // default pending
+  const [searchStudent, setSearchStudent] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-    const [statsData, setStatsData] = useState({
-        pendingCount: 0,
-        approvedCount: 0,
-        totalRequests: 0,
-    });
-    const [loadingStats, setLoadingStats] = useState(true);
-    const [errorStats, setErrorStats] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState(false);
 
-    const [requestsList, setRequestsList] = useState([]);
-    const [loadingRequests, setLoadingRequests] = useState(true);
-    const [errorRequests, setErrorRequests] = useState(null);
+  const fetchStats = async () => {
+    if (!token) return;
+    try {
+      const res = await fetchData('admin-review/stats', {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (res?.success && res.data) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    const [activityCategories, setActivityCategories] = useState([]); // <--- STATE اضافه شد
-    const [loadingActivityCategories, setLoadingActivityCategories] = useState(true); // <--- STATE اضافه شد
+  const fetchRequests = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      let query = `admin-review/student-activities?page=${page}&limit=10`;
+      if (filterStatus !== 'all') query += `&status=${filterStatus}`;
+      if (searchStudent.trim()) query += `&studentName=${encodeURIComponent(searchStudent.trim())}`;
 
-    // ... بعد از تعریف token
+      const res = await fetchData(query, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (res?.success && Array.isArray(res.data)) {
+        setRequests(res.data);
+        setTotalPages(res.totalPages || 1);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // --- شروع بخش کد برای نوتیفیکیشن ---
-    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const notificationRef = useRef(null); // اسم رفرنس رو ساده نگه می‌داریم
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
-    const toggleNotificationPanel = () => setIsNotificationOpen((prev) => !prev);
-    const closeNotificationPanel = () => setIsNotificationOpen(false);
-    // --- پایان بخش کد برای نوتیفیکیشن ---
+  useEffect(() => {
+    fetchRequests();
+  }, [filterStatus, page]);
 
-    // ... بقیه state های شما مثل isModalOpen و ...
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    fetchRequests();
+  };
 
-    useEffect(() => {
-        // واکشی آمار، دسته‌بندی‌ها و تعداد اعلان‌ها
-        const fetchInitialAdminData = async () => {
-            if (!token) { /* ... مدیریت خطا ... */ return; }
-            setLoadingStats(true);
-            // ... بقیه state های لودینگ
+  const handleApprove = async (id, scoreAwarded, adminComment, details) => {
+    setSubmittingAction(true);
+    try {
+      const res = await fetchData(`admin-review/student-activities/${id}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ scoreAwarded, adminComment, details })
+      });
 
-            try {
-                // <<< تغییر: اندپوینت نوتیفیکیشن به Promise.all اضافه می‌شود >>>
-                const [statsResponse, categoriesResponse, notificationCountResponse] = await Promise.all([
-                    fetchData('admin-review/student-activity-stats', { headers: { authorization: `Bearer ${token}` } }),
-                    fetchData('admin-activity/distinct/parents', { headers: { authorization: `Bearer ${token}` } }),
-                    fetchData('notifications?filter=unread', { headers: { authorization: `Bearer ${token}` } }) // <<<< این خط جدید است
-                ]);
+      if (res?.success) {
+        toast.success("درخواست با موفقیت تایید و امتیاز ثبت شد.");
+        setIsModalOpen(false);
+        fetchStats();
+        fetchRequests();
+      } else {
+        toast.error(res?.message || "خطا در تایید درخواست.");
+      }
+    } catch (err) {
+      toast.error("خطای شبکه یا سرور");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-                // ... (کد مربوط به statsResponse و categoriesResponse بدون تغییر)
-                if (statsResponse.success) { /* ... */ }
-                if (categoriesResponse.success) { /* ... */ }
+  const handleReject = async (id, adminComment) => {
+    setSubmittingAction(true);
+    try {
+      const res = await fetchData(`admin-review/student-activities/${id}/reject`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ adminComment })
+      });
 
-                // <<< تغییر: ذخیره کردن تعداد اعلان‌ها در state >>>
-                if (notificationCountResponse.success) {
-                    setUnreadCount(notificationCountResponse.totalCount || 0);
-                }
+      if (res?.success) {
+        toast.info("درخواست رد شد و بازخورد به دانش‌آموز اعلام گردید.");
+        setIsModalOpen(false);
+        fetchStats();
+        fetchRequests();
+      } else {
+        toast.error(res?.message || "خطا در رد درخواست.");
+      }
+    } catch (err) {
+      toast.error("خطای شبکه یا سرور");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-            } catch (err) { /* ... مدیریت خطا ... */
-            } finally { /* ... ست کردن لودینگ به false ... */ }
-        };
+  const getStatusBadge = (status) => {
+    if (status === 'approved') return <RokadBadge variant="approved" label="تایید شده" />;
+    if (status === 'pending') return <RokadBadge variant="pending" label="در انتظار بررسی" />;
+    return <RokadBadge variant="rejected" label="رد شده" />;
+  };
 
-        fetchInitialAdminData();
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Header */}
+      <div>
+        <h2 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
+          کارتابل بررسی درخواست‌ها
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          بررسی، تایید امتیاز یا رد فعالیت‌های ارسال‌شده توسط دانش‌آموزان
+        </p>
+      </div>
 
-        // <<< تغییر: اضافه کردن منطق بستن پنل با کلیک بیرون >>>
-        function handleClickOutside(event) {
-            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-                const notificationIcon = document.getElementById("admin-requests-notification-icon");
-                if (notificationIcon && notificationIcon.contains(event.target)) return;
-                closeNotificationPanel();
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+      {/* 2. Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        <StatCard
+          title="در انتظار بررسی"
+          value={stats.pendingCount}
+          subtitle="نیازمند اقدام فوری"
+          icon={Clock}
+          theme="female"
+        />
+        <StatCard
+          title="تایید شده"
+          value={stats.approvedCount}
+          subtitle="فعالیت‌های پذیرفته‌شده"
+          icon={CheckCircle2}
+          theme="ecosystem"
+        />
+        <StatCard
+          title="کل درخواست‌ها"
+          value={stats.totalRequests}
+          subtitle="مجموع درخواست‌های دریافتی"
+          icon={ClipboardList}
+          theme="male"
+        />
+      </div>
 
-    }, [token]);
+      {/* 3. Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-white dark:bg-[#151C28] border border-gray-200 dark:border-gray-800 shadow-[2px_2px_0_#202A5A] dark:shadow-[2px_2px_0_#59BBAF]">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: 'pending', label: 'در انتظار بررسی' },
+            { id: 'approved', label: 'تایید شده' },
+            { id: 'rejected', label: 'رد شده' },
+            { id: 'all', label: 'همه' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setFilterStatus(tab.id);
+                setPage(1);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterStatus === tab.id
+                  ? 'bg-[#59BBAF] text-white shadow-[2px_2px_0_#1F413D]'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-    const [filters, setFilters] = useState({
-        status: '',
-        activityParent: '',
-        activityName: '',
-        studentName: '',
-    });
-    const [sort, setSort] = useState({ sortBy: 'submissionDate', order: 'desc' });
-    const [pagination, setPagination] = useState({
-        currentPage: 1,
-        totalPages: 1,
-        totalCount: 0,
-        limit: 6,
-    });
-    const [openFilterDropdowns, setOpenFilterDropdowns] = useState({
-        status: false,
-        activityParent: false,
-    });
+        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-64">
+          <input
+            type="text"
+            value={searchStudent}
+            onChange={(e) => setSearchStudent(e.target.value)}
+            placeholder="جستجوی نام دانش‌آموز..."
+            className="rokad-input pr-9 text-xs"
+          />
+          <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </form>
+      </div>
 
-    const fetchInitialAdminData = async () => {
-        if (!token) {
-            setErrorStats("توکن یافت نشد.");
-            setLoadingStats(false);
-            setLoadingActivityCategories(false);
-            return;
-        }
-        setLoadingStats(true);
-        setLoadingActivityCategories(true);
-        setErrorStats(null);
-        // setErrorActivityCategories(null); // اگر خطای جدا برایش دارید
-
-        try {
-            const statsPromise = fetchData('admin-review/student-activity-stats', { headers: { authorization: `Berear ${token}` } });
-            const categoriesPromise = fetchData('admin-activity/distinct/parents', { headers: { authorization: `Berear ${token}` } });
-            const [statsResponse, categoriesResponse] = await Promise.all([statsPromise, categoriesPromise]);
-
-            if (statsResponse.success && statsResponse.data) {
-                setStatsData(statsResponse.data);
-            } else {
-                setErrorStats(statsResponse.message || "خطا در دریافت آمار");
-            }
-            if (categoriesResponse.success && categoriesResponse.data) {
-                setActivityCategories(categoriesResponse.data || []);
-            } else {
-                // setErrorActivityCategories(categoriesResponse.message || "خطا در دریافت دسته‌بندی‌ها");
-                setActivityCategories([]);
-                console.error("Failed to fetch activity categories:", categoriesResponse.message);
-            }
-        } catch (err) {
-            setErrorStats("خطای شبکه (آمار/دسته‌بندی): " + err.message);
-            // setErrorActivityCategories("خطای شبکه (دسته‌بندی): " + err.message);
-        } finally {
-            setLoadingStats(false);
-            setLoadingActivityCategories(false);
-        }
-    };
-
-
-    const fetchRequestsList = async () => {
-        // ... (کد fetchRequestsList بدون تغییر باقی می‌ماند) ...
-        if (!token) { setErrorRequests("توکن یافت نشد."); setLoadingRequests(false); return; }
-        setLoadingRequests(true); setErrorRequests(null);
-        const queryParams = new URLSearchParams();
-        if (filters.status) queryParams.append('status', filters.status);
-        if (filters.activityParent) queryParams.append('activityParent', filters.activityParent);
-        if (filters.activityName) queryParams.append('activityName', filters.activityName);
-        if (filters.studentName) queryParams.append('studentName', filters.studentName);
-        queryParams.append('sortBy', sort.sortBy);
-        queryParams.append('order', sort.order);
-        queryParams.append('page', pagination.currentPage);
-        queryParams.append('limit', pagination.limit);
-        try {
-            const response = await fetchData(`admin-review/student-activities-list?${queryParams.toString()}`, { headers: { authorization: `Bearer ${token}` } });
-            if (response.success && response.data) {
-                setRequestsList(response.data);
-                setPagination(prev => ({ ...prev, totalPages: response.totalPages || 1, totalCount: response.totalCount || 0, currentPage: response.currentPage || 1, }));
-            } else { setErrorRequests(response.message || "خطا در دریافت لیست"); setRequestsList([]); }
-        } catch (err) { setErrorRequests("خطای شبکه (لیست): " + err.message); setRequestsList([]); }
-        finally { setLoadingRequests(false); }
-    };
-
-    useEffect(() => {
-        fetchInitialAdminData(); // واکشی آمار و دسته بندی ها یک بار
-    }, [token]);
-
-    useEffect(() => {
-        fetchRequestsList(); // واکشی لیست با تغییر وابستگی ها
-    }, [token, filters, sort, pagination.currentPage, pagination.limit]);
-
-
-    const handleRowClick = (request) => { setSelectedRequest(request); setIsModalOpen(true); };
-    const handleCloseModal = () => { setIsModalOpen(false); setSelectedRequest(null); };
-
-    const refreshDataAfterAction = async () => {
-        await fetchInitialAdminData(); // رفرش آمار و دسته‌بندی‌ها (دسته‌بندی‌ها معمولاً تغییر نمی‌کنند ولی برای اطمینان)
-        await fetchRequestsList();
-    };
-
-    const handleApprove = async (studentActivityId, score, adminComment, details) => { // <<< `details` اینجا اضافه شد
-        if (!token || !studentActivityId) return;
-        try {
-            const payload = {
-                scoreAwarded: score,
-                adminComment: adminComment,
-                details: details // <<< `details` به payload اضافه شد
-            };
-
-            const response = await fetchData(`admin-review/student-activities/${studentActivityId}/approve`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.success) {
-                await refreshDataAfterAction();
-            } else {
-                alert("خطا در تایید: " + (response.message || "خطای نامشخص"));
-            }
-        } catch (err) {
-            alert("خطای شبکه: " + err.message);
-        }
-        handleCloseModal();
-    };
-
-    const handleReject = async (studentActivityId, adminComment) => {
-        // ... (کد handleReject بدون تغییر، فقط مطمئن شوید refreshDataAfterAction را صدا می‌زند)
-        if (!token || !studentActivityId) return;
-        try {
-            const response = await fetchData(`admin-review/student-activities/${studentActivityId}/reject`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ adminComment }) });
-            if (response.success) { await refreshDataAfterAction(); }
-            else { alert("خطا در رد: " + (response.message || "خطای نامشخص")); }
-        } catch (err) { alert("خطای شبکه: " + err.message); }
-        handleCloseModal();
-    };
-
-    const getStatusClassAndText = (status) => { /* ... (بدون تغییر) ... */
-        switch (status) {
-            case 'approved': return { text: 'تایید شده', class: 'text-green-600' };
-            case 'rejected': return { text: 'رد شده', class: 'text-red-600' };
-            case 'pending': return { text: 'در انتظار', class: 'text-yellow-600' };
-            default: return { text: status, class: 'text-gray-600' };
-        }
-    };
-    const handleFilterChange = (filterName, value) => { /* ... (بدون تغییر) ... */
-        setFilters(prev => ({ ...prev, [filterName]: value }));
-        setPagination(prev => ({ ...prev, currentPage: 1 }));
-        if (openFilterDropdowns[filterName] !== undefined) {
-            setOpenFilterDropdowns(prev => ({ ...prev, [filterName]: false }));
-        }
-    };
-    const handlePageChange = (newPage) => {
-        if (newPage >= 1 && newPage <= pagination.totalPages && !loadingRequests) {
-            setPagination(prev => ({ ...prev, currentPage: newPage }));
-        }
-    };
-    const toggleFilterDropdown = (filterName) => { /* ... (بدون تغییر) ... */
-        setOpenFilterDropdowns(prev => ({
-            ...Object.keys(prev).reduce((acc, key) => { acc[key] = false; return acc; }, {}),
-            [filterName]: !prev[filterName]
-        }));
-    };
-
-    const statusFilterOptions = [ /* ... (بدون تغییر) ... */
-        { value: '', label: 'همه وضعیت‌ها' },
-        { value: 'pending', label: 'در انتظار بررسی' },
-        { value: 'approved', label: 'تایید شده' },
-        { value: 'rejected', label: 'رد شده' },
-    ];
-    // حالا parentCategoryFilterOptions از state خوانده می‌شود
-    const parentCategoryFilterOptions = [{ value: '', label: 'همه دسته‌بندی‌ها' }, ...(activityCategories || []).map(cat => ({ value: cat, label: cat }))];
-
-    const statCardsDisplayData = [ /* ... (بدون تغییر، از statsData استفاده می‌کند) ... */
-        { title: "درخواست های در انتظار بررسی", count: statsData.pendingCount, Icon: "MessageTime", iconBgColor: "bg-[#FF500A]", textColor: "text-[#FF500A]" },
-        { title: "درخواست های تایید شده", count: statsData.approvedCount, Icon: "MessageTick", iconBgColor: "bg-[#FF500A]", textColor: "text-[#FF500A]" },
-    ];
-
-    return (
-        <>
-            {/* ... (img union) ... */}
-            <div className={`${Open ? "w-[80%]" : "w-[94%]"} p-6 md:p-8 transition-all duration-500 flex flex-col h-screen relative z-10 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 overflow-y-auto`}>                {/* ... (هدر صفحه) ... */}
-                <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
-
-                    {/* در داخل اولین div در هدر صفحه */}
-                    <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
-                        <h3 className='text-[#19A297] text-xs sm:text-sm'>هنرستان استارتاپی رکاد</h3>
-                        <BiSolidSchool className='text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl' />
-
-                        {/* --- کد جدید برای آیکون و پنل نوتیفیکیشن --- */}
-                        <div className="relative" ref={notificationRef}>
-                            <button
-                                id="admin-requests-notification-icon"
-                                onClick={toggleNotificationPanel}
-                                className="w-8 h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer relative group"
-                                aria-label="اعلان‌ها"
-                            >
-                                <IoNotificationsOutline className="text-gray-400" />
-                                {unreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
-                                        {unreadCount > 9 ? '۹+' : unreadCount.toLocaleString('fa-IR')}
-                                    </span>
-                                )}
-                            </button>
-                            <NotificationPanel
-                                isOpen={isNotificationOpen}
-                                onClose={closeNotificationPanel}
-                                token={token}
-                                userType="admin" // <<<< این prop کامپوننت را برای ادمین تنظیم می‌کند
-                            />
-                        </div>
-                        {/* --- پایان کد جدید --- */}
-                    </div>
-                    <div className="flex justify-center items-center gap-3 sm:gap-5">
-                        <p className='text-gray-400 text-xs sm:text-sm'> امروز {week}، {day} {month} ماه {year}</p>
-                        <h1 className='text-[#19A297] font-semibold text-base sm:text-lg'>بررسی درخواست ها</h1>
-                    </div>
-                </div>
-
-
-                {/* ... (کارت‌های آماری با استفاده از statCardsDisplayData و statsData.totalRequests) ... */}
-                <div className="flex flex-col lg:flex-row gap-5 mb-6 min-h-[150px] lg:h-[25vh]">
-                    {loadingStats && Array(2).fill(0).map((_, i) => <div key={i} className="flex-1 bg-gray-200 animate-pulse rounded-lg"></div>)}
-                    {!loadingStats && errorStats && <p className="text-red-500 lg:col-span-2 text-center bg-red-100 p-3 rounded">{errorStats}</p>}
-                    {!loadingStats && !errorStats &&
-                        <>
-                            <div className="flex flex-col gap-4 lg:w-1/2">
-                                {statCardsDisplayData.map((card, idx) => (
-                                    <div key={idx} className="relative flex-1 bg-[#FF500A] rounded-lg overflow-hidden p-4 sm:p-6 flex items-center justify-between shadow-sm border border-gray-100">
-                                        <img src={Frame11} className='absolute z-0 h-full w-full object-cover left-0 top-0 opacity-100' alt="" />
-                                        <p className={`${card.textColor} font-semibold text-xl sm:text-3xl z-10`}>{card.count?.toLocaleString('fa-IR')}</p>
-                                        <div className='flex items-center gap-2 sm:gap-3 z-10'>
-                                            <h2 className={`${card.textColor} font-semibold text-md sm:text-xl md:text-xl text-right`}>{card.title}</h2>
-                                            <div className={`${card.iconBgColor} flex justify-center items-center w-18 h-18 rounded-full flex-shrink-0`}>
-                                                <DynamicIcon color="white" variant="Bold" size={32} name={`${card.Icon}`} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="relative lg:w-1/2 bg-blue-50 rounded-lg overflow-hidden p-6 flex flex-col justify-center items-center text-center shadow-sm border border-gray-100 gap-2">
-                                <img src={Frame10} className='absolute z-0 h-full w-full object-cover top-0 left-0 opacity-100' alt="" />
-                                <div className="bg-[#FF500A] flex justify-center items-center w-18 h-18 rounded-[100%] mb-2 z-10">
-                                    <DynamicIcon name={"Message2"} size={32} color="white" variant="Bold" />
-
-                                </div>
-                                <h2 className='text-[#FF500A] font-semibold text-xl z-10'>کل درخواست های ثبت شده</h2>
-                                <p className='text-[#FF500A] font-bold text-2xl z-10'>{statsData.totalRequests?.toLocaleString('fa-IR')}</p>
-                            </div>
-                        </>
-                    }
-                </div>
-
-
-                {/* ... (بخش فیلترها با استفاده از activityCategories برای دراپ‌داون دسته‌بندی والد) ... */}
-                <div className="flex flex-col sm:flex-row justify-between items-center w-full mb-3 mt-8">
-                    <div className="flex flex-wrap gap-2 mb-4 sm:mb-0">
-                        {/* Status Filter */}
-                        <div className="relative">
-                            <button onClick={() => toggleFilterDropdown('status')} className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-xs flex items-center justify-between min-w-[120px] hover:border-gray-400">
-                                <span>{statusFilterOptions.find(o => o.value === filters.status)?.label || 'وضعیت'}</span>
-                                <IoIosArrowDown className={`ml-2 transition-transform ${openFilterDropdowns.status ? 'rotate-180' : ''}`} />
-                            </button>
-                            {openFilterDropdowns.status && (
-                                <div className="absolute z-30 top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg py-1 max-h-60 overflow-y-auto">
-                                    {statusFilterOptions.map(opt => (
-                                        <button key={opt.value} onClick={() => handleFilterChange('status', opt.value)} className="block w-full text-right px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100">{opt.label}</button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        {/* Parent Category Filter */}
-                        <div className="relative">
-                            <button onClick={() => toggleFilterDropdown('activityParent')} className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-xs flex items-center justify-between min-w-[150px] hover:border-gray-400"
-                                disabled={loadingActivityCategories || activityCategories.length === 0}>
-                                <span>{parentCategoryFilterOptions.find(o => o.value === filters.activityParent)?.label || 'دسته بندی فعالیت'}</span>
-                                <IoIosArrowDown className={`ml-2 transition-transform ${openFilterDropdowns.activityParent ? 'rotate-180' : ''}`} />
-                            </button>
-                            {openFilterDropdowns.activityParent && !loadingActivityCategories && activityCategories.length > 0 && (
-                                <div className="absolute z-30 top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg py-1 max-h-60 overflow-y-auto">
-                                    {parentCategoryFilterOptions.map(opt => (
-                                        <button key={opt.value} onClick={() => handleFilterChange('activityParent', opt.value)} className="block w-full text-right px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100">{opt.label}</button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <input type="text" placeholder="نام دانش آموز..." value={filters.studentName} onChange={(e) => handleFilterChange('studentName', e.target.value)}
-                            className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#19A297] focus:border-[#19A297]" />
-                        <input type="text" placeholder="عنوان فعالیت..." value={filters.activityName} onChange={(e) => handleFilterChange('activityName', e.target.value)}
-                            className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#19A297] focus:border-[#19A297]" />
-                    </div>
-                    <div className="flex items-center justify-end sm:justify-between gap-4 w-full sm:w-auto">
-                        <p className='text-gray-400 text-xs hidden sm:block'>آخرین درخواست ها را مشاهده می کنید</p>
-                        <h3 className='text-[#19A297] font-semibold text-base sm:text-lg'>آخرین درخواست ها</h3>
-                    </div>
-                </div>
-
-
-                {/* ... (جدول درخواست‌ها با استفاده از requestsList و کنترل‌های صفحه‌بندی - بدون تغییر زیاد از کد قبلی شما، فقط مطمئن شوید `key` برای `<tr>` از `request._id` باشد) ... */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-                    {loadingRequests && <p className="text-center py-10 text-gray-600">در حال بارگذاری درخواست‌ها...</p>}
-                    {errorRequests && <p className="text-center py-10 text-red-600 bg-red-100 p-4 rounded-md">{errorRequests}</p>}
-                    {!loadingRequests && !errorRequests && requestsList.length === 0 && (
-                        <p className="text-center py-10 text-gray-500">درخواستی برای نمایش یافت نشد.</p>
-                    )}
-                    {!loadingRequests && !errorRequests && requestsList.length > 0 && (
-                        <table className='w-full min-w-[700px] rtl text-xs sm:text-sm'>
-                            <thead className='bg-gray-50 text-[#202A5A] sticky top-0 z-10'>
-                                {/* ... (هدرهای جدول با onClick برای handleSortChange) ... */}
-                                <tr>
-                                    <th className='font-medium text-center px-3 py-2.5 border-b border-gray-200 cursor-pointer' onClick={() => handleSortChange('studentName')}>نام دانش آموز {sort.sortBy === 'studentName' && (sort.order === 'asc' ? '↑' : '↓')}</th>
-                                    <th className='font-medium text-center px-3 py-2.5 border-b border-gray-200 cursor-pointer' onClick={() => handleSortChange('activityName')}>عنوان فعالیت {sort.sortBy === 'activityName' && (sort.order === 'asc' ? '↑' : '↓')}</th>
-                                    <th className='font-medium text-center px-3 py-2.5 border-b border-gray-200 cursor-pointer' onClick={() => handleSortChange('submissionDate')}>تاریخ ثبت {sort.sortBy === 'submissionDate' && (sort.order === 'asc' ? '↑' : '↓')}</th>
-                                    <th className='font-medium text-center px-3 py-2.5 border-b border-gray-200 cursor-pointer' onClick={() => handleSortChange('reviewDate')}>تاریخ بررسی {sort.sortBy === 'reviewDate' && (sort.order === 'asc' ? '↑' : '↓')}</th>
-                                    <th className='font-medium text-center px-3 py-2.5 border-b border-gray-200 cursor-pointer' onClick={() => handleSortChange('status')}>وضعیت {sort.sortBy === 'status' && (sort.order === 'asc' ? '↑' : '↓')}</th>
-                                </tr>
-                            </thead>
-                            <tbody className='divide-y divide-gray-100'>
-                                {requestsList.map((request, idx) => {
-                                    const statusInfo = getStatusClassAndText(request.status);
-                                    return (
-                                        <tr key={request._id} // <<--- استفاده از request._id
-                                            className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} hover:bg-gray-100 transition-colors cursor-pointer`}
-                                            onClick={() => handleRowClick(request)}
-                                        >
-                                            <td className='px-3 py-2.5 text-center whitespace-nowrap text-[#19A297]'>{request.studentName || '-'}</td>
-                                            <td className='px-3 py-2.5 text-center whitespace-nowrap text-[#202A5A] font-medium'>{request.activityTitle || '-'}</td>
-                                            <td className='px-3 py-2.5 text-center whitespace-nowrap text-gray-600'>{request.submissionDate ? new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(request.submissionDate)) : '-'}</td>
-                                            <td className='px-3 py-2.5 text-center whitespace-nowrap text-gray-600'>{request.reviewDate ? new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(request.reviewDate)) : '-'}</td>
-                                            <td className={`px-3 py-2.5 text-center whitespace-nowrap font-medium ${statusInfo.class}`}>{statusInfo.text}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-                {/* Pagination Controls */}
-                {!loadingRequests && !errorRequests && requestsList.length > 0 && pagination.totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 mt-6 p-4 bg-gray-50 rounded-b-xl border-t border-gray-200">
-                        <button onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1} className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors">قبلی</button>
-                        <span className="text-sm text-gray-700"> صفحه {pagination.currentPage.toLocaleString('fa-IR')} از {pagination.totalPages.toLocaleString('fa-IR')} (کل: {pagination.totalCount?.toLocaleString('fa-IR') || '۰'}) </span>
-                        <button onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={pagination.currentPage === pagination.totalPages} className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors">بعدی</button>
-                    </div>
-                )}
-                <div className="h-16"></div> {/* Padding at bottom for scroll */}
+      {/* 4. Requests Table */}
+      <RokadCard className="p-0 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-xs text-gray-400">
+            در حال بارگذاری درخواست‌ها...
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="p-12 text-center">
+            <ClipboardList className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-[#202A5A] dark:text-white mb-1">
+              درخواستی در این بخش وجود ندارد
+            </h4>
+            <p className="text-xs text-gray-400">
+              با انتخاب فیلترهای دیگر می‌توانید سوابق پیشین را مشاهده کنید.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-right text-xs sm:text-sm">
+                <thead className="bg-[#F8F9FA] dark:bg-[#1C2536] text-[#202A5A] dark:text-white font-black border-b border-gray-200 dark:border-gray-800">
+                  <tr>
+                    <th className="p-4">دانش‌آموز</th>
+                    <th className="p-4">پایه و کلاس</th>
+                    <th className="p-4">عنوان فعالیت</th>
+                    <th className="p-4">تاریخ ثبت</th>
+                    <th className="p-4">وضعیت</th>
+                    <th className="p-4">امتیاز</th>
+                    <th className="p-4 text-center">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {requests.map((item) => (
+                    <tr
+                      key={item.id || item._id}
+                      className="hover:bg-gray-50/80 dark:hover:bg-[#1C2536]/50 transition-colors"
+                    >
+                      <td className="p-4 font-bold text-[#202A5A] dark:text-white">
+                        {item.studentName}
+                      </td>
+                      <td className="p-4 text-gray-500 dark:text-gray-400">
+                        پایه {item.studentGrade || '—'} • کلاس {toPersianDigits(item.studentClass || '')}
+                      </td>
+                      <td className="p-4">
+                        <span className="font-bold text-[#202A5A] dark:text-white block">
+                          {item.activityName || item.activityTitle}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                          {item.activityParent}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500 dark:text-gray-400">
+                        {formatToJalali(item.submissionDate || item.createdAt)}
+                      </td>
+                      <td className="p-4">{getStatusBadge(item.status)}</td>
+                      <td className="p-4 font-black text-[#59BBAF]">
+                        {item.scoreAwarded > 0 ? `+${toPersianDigits(item.scoreAwarded)}` : toPersianDigits(item.scoreAwarded)}
+                      </td>
+                      <td className="p-4 text-center">
+                        <RokadButton
+                          onClick={() => {
+                            setSelectedRequest(item);
+                            setIsModalOpen(true);
+                          }}
+                          variant={item.status === 'pending' ? 'primary' : 'outline'}
+                          size="sm"
+                        >
+                          {item.status === 'pending' ? 'بررسی و تصمیم' : 'مشاهده'}
+                        </RokadButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <RequestApprovalModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                requestData={selectedRequest}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                token={token}
-            />
-        </>
-    );
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {requests.map((item) => (
+                <div key={item.id || item._id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-[#202A5A] dark:text-white">
+                        {item.studentName}
+                      </h4>
+                      <span className="text-xs text-gray-400">
+                        پایه {item.studentGrade} • کلاس {toPersianDigits(item.studentClass)}
+                      </span>
+                    </div>
+                    {getStatusBadge(item.status)}
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#1C2536] text-xs">
+                    <span className="font-bold text-[#202A5A] dark:text-white block">
+                      {item.activityName || item.activityTitle}
+                    </span>
+                    <span className="text-gray-400 text-[11px]">
+                      {item.activityParent}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <span className="text-gray-400">
+                      {formatToJalali(item.submissionDate || item.createdAt)}
+                    </span>
+                    <RokadButton
+                      onClick={() => {
+                        setSelectedRequest(item);
+                        setIsModalOpen(true);
+                      }}
+                      variant={item.status === 'pending' ? 'primary' : 'outline'}
+                      size="sm"
+                    >
+                      {item.status === 'pending' ? 'بررسی و ثبت نظر' : 'مشاهده'}
+                    </RokadButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-400">
+              صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+            </span>
+            <div className="flex items-center gap-2">
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span>قبلی</span>
+              </RokadButton>
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              >
+                <span>بعدی</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </RokadButton>
+            </div>
+          </div>
+        )}
+      </RokadCard>
+
+      {/* Approval / Review Modal */}
+      <RequestApprovalModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        requestData={selectedRequest}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        submitting={submittingAction}
+      />
+    </div>
+  );
 }

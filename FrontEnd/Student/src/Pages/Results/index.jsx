@@ -1,467 +1,313 @@
-// Results.jsx (صفحه نمایش نتایج برای دانش‌آموز)
-import React, { useState, useEffect, useMemo } from "react";
-import { BiSolidSchool } from "react-icons/bi";
-import { IoNotificationsOutline } from "react-icons/io5";
-// import { useNavigate } from 'react-router-dom';
-import fetchData from "../../Utils/fetchData"; // مسیر صحیح
-import { useRef } from "react";
-import NotificationPanel from "../../Components/NotificationPanel";
-import StudentProfileModal from "./StudentProfileModal/StudentProfileModal";
+import React, { useState, useEffect } from 'react';
+import fetchData from '../../Utils/fetchData';
+import { toPersianDigits } from '../../Utils/utils';
+import RokadCard from '../../Components/UI/RokadCard';
+import StatCard from '../../Components/UI/StatCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import {
+  Trophy,
+  Medal,
+  Award,
+  Users,
+  ChevronRight,
+  ChevronLeft,
+  Crown,
+  Sparkles,
+  AlertCircle
+} from 'lucide-react';
 
-
-const headerConfig = [
-  {
-    title: "نام و نام‌خانوادگی",
-    key: "name",
-    headerClass: "bg-gray-100 w-40 text-[#202A5A]",
-    cellClass: "text-[#202A5A] whitespace-nowrap border-2 border-solid border-[#F2F2F2] text-[16px]",
-  },
-  {
-    title: "کلاس",
-    key: "class",
-    headerClass: "bg-gray-100 w-15  text-[#202A5A]",
-    cellClass: "text-[#202A5A] w-15 border-2 border-solid border-[#F2F2F2] text-[16px]",
-  },
-  {
-    title: "آموزشی",
-    key: "educationalActivities",
-    headerClass: "bg-[#652D90] w-20 text-white",
-    cellClass: "text-[#652D90] w-20 border-2 border-solid border-[#F2F2F2]  text-[16px]",
-  },
-  {
-    title: "داوطلبانه و توسعۀ فردی",
-    key: "voluntaryActivities",
-    headerClass: "bg-[#E0195B] w-35 text-white",
-    cellClass: "text-[#E0195B] w-35 border-2 border-solid border-[#F2F2F2] text-[16px]",
-  }, // عنوان کوتاه شد
-  {
-    title: "شغلی",
-    key: "jobActivities",
-    headerClass: "bg-[#F8A41D] w-20 text-white",
-    cellClass: "text-[#F8A41D] w-20 text-[16px] border-2 border-solid border-[#F2F2F2]",
-  }, // رنگ هدر اصلاح شد
-  {
-    title: "کسر امتیاز",
-    key: "deductions",
-    headerClass: "bg-[#787674] w-15 text-white",
-    cellClass: "text-[#787674] w-15 text-[16px] border-2 border-solid border-[#F2F2F2]",
-  },
-  {
-    title: "امتیاز کل",
-    key: "score",
-    headerClass: "bg-gray-100 w-20 text-[#202A5A]",
-    cellClass: "text-[#202A5A] w-20 font-bold text-[16px] border-2 border-solid border-[#F2F2F2]",
-  },
-  {
-    title: "رتبه در پایه",
-    key: "rank",
-    headerClass: "bg-gray-100 w-20 text-[#202A5A]",
-    cellClass: "text-[#202A5A] w-20 font-bold text-[16px] border-2 border-solid border-[#F2F2F2]",
-  }, // عنوان به "رتبه در پایه" تغییر کرد
-].reverse();
-
-export default function StudentResultsPage({ Open }) {
-  // نام کامپوننت را واضح‌تر کردم
+export default function StudentResults() {
   const token = localStorage.getItem("token");
-  // const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  const [resultsTableData, setResultsTableData] = useState([]);
+  const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalResultsCount, setTotalResultsCount] = useState(0);
-  const [currentUserInfo, setCurrentUserInfo] = useState(null); // برای نمایش اطلاعات کاربر فعلی
-  const [visibility, setVisibility] = useState(false);
+  const [currentUserRankData, setCurrentUserRankData] = useState(null);
 
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const openStudentModal = (student) => {
-    setSelectedStudent(student);
-    setIsModalOpen(true);
-  };
-
-  const closeStudentModal = () => {
-    setIsModalOpen(false);
-    setSelectedStudent(null);
-  };
-
-
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const notificationRef = useRef(null);
-
-  const refreshUnreadCount = async () => {
+  const fetchRankings = async (targetPage = 1) => {
     if (!token) return;
+    setLoading(true);
+    setError(null);
+
     try {
-      const response = await fetchData('notifications?filter=unread', {
+      const res = await fetchData(`users/my-grade-rankings?page=${targetPage}&limit=10`, {
         headers: { authorization: `Bearer ${token}` }
       });
-      if (response.success) {
-        setUnreadCount(response.totalCount || 0);
+      if (res?.success && Array.isArray(res.data)) {
+        setRankings(res.data);
+        setTotalPages(Math.ceil((res.totalCount || 0) / 10) || 1);
+        setPage(targetPage);
+
+        // Find current user row
+        const myRow = res.data.find(r => r.id === user?.id || r._id === user?.id || r.idCode === user?.idCode);
+        if (myRow) setCurrentUserRankData(myRow);
+      } else {
+        setError(res?.message || 'خطا در دریافت جدول امتیازات');
       }
-    } catch (error) {
-      console.error("Failed to refresh unread count:", error);
+    } catch (err) {
+      setError(err.message || 'خطای شبکه');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const toggleNotificationPanel = () => setIsNotificationOpen(prev => !prev);
-  const closeNotificationPanel = () => {
-    setIsNotificationOpen(false);
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-  };
-  // <<< تغییر: ۲. دریافت اطلاعات هدر و تعداد اعلان‌ها
-  useEffect(() => {
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-
-  }, [token]);
-
-  // <<< تغییر: ۳. منطق بستن پنل با کلیک بیرون
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target)
-      ) {
-        const notificationIcon = document.getElementById("notification-icon-button-results"); // آیدی یکتا
-        if (notificationIcon && notificationIcon.contains(event.target)) return;
-        setIsNotificationOpen(false);
-      }
-    }
-    if (isNotificationOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isNotificationOpen]);
-
-
-  const date = new Date();
-  const year = new Intl.DateTimeFormat("fa-IR", { year: "numeric" }).format(
-    date
-  );
-  const month = new Intl.DateTimeFormat("fa-IR", { month: "long" }).format(
-    date
-  );
-  const day = new Intl.DateTimeFormat("fa-IR", { day: "numeric" }).format(date);
-  const week = new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(
-    date
-  );
-
-  const formatNumberToPersian = (num) => {
-    if (num === undefined || num === null || isNaN(Number(num))) return "۰";
-    if (num < 0) return `(${Math.abs(num).toLocaleString("fa-IR")}-)`; // نمایش منفی
-    return Number(num).toLocaleString("fa-IR");
   };
 
   useEffect(() => {
-    const fetchMyGradeResults = async (page = 1) => {
-      if (!token) {
-        setError("توکن احراز هویت یافت نشد. لطفاً دوباره وارد شوید.");
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetchData(
-          `users/my-grade-rankings?page=${page}&limit=10`,
-          {
-            headers: { authorization: `Bearer ${token}` },
-          }
-        );
+    fetchRankings(1);
+  }, []);
 
-        if (response.success && Array.isArray(response.data)) {
-          const formattedData = response.data.map((item) => ({
-            ...item,
-            educationalActivities: formatNumberToPersian(
-              item.educationalActivities
-            ),
-            voluntaryActivities: formatNumberToPersian(
-              item.voluntaryActivities
-            ),
-            jobActivities: formatNumberToPersian(item.jobActivities),
-            deductions: (item.deductions),
-            score: formatNumberToPersian(item.score),
-            rank: formatNumberToPersian(item.rank),
-          }));
-
-          setResultsTableData(formattedData);
-          setCurrentPage(page);
-          setTotalResultsCount(response.totalCount || 0);
-          setTotalPages(Math.ceil((response.totalCount || 0) / 15));
-
-          // پیدا کردن و ذخیره اطلاعات کاربر فعلی از لیست
-          const userString = localStorage.getItem("user");
-          const currentUser = userString ? JSON.parse(userString) : null;
-
-          if (currentUser) {
-            const foundUser = response.data.find(
-              (item) => item.id === currentUser.id || item.userId === currentUser.id
-            );
-            if (foundUser) setCurrentUserInfo(foundUser);
-          }
-        } else {
-          setError(response.message || "خطا در دریافت نتایج هم‌پایه‌ای‌ها.");
-          setResultsTableData([]);
-        }
-      } catch (err) {
-        setError("خطای شبکه یا سرور: " + (err.message || "خطای ناشناخته"));
-        setResultsTableData([]);
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          setVisibility(true)
-        }, 200);
-      }
-    };
-
-    fetchMyGradeResults(currentPage);
-  }, [currentPage, token]);
-
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages && !loading) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  if (loading && resultsTableData.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-screen w-full">
-        <p className="text-xl text-gray-600">در حال بارگذاری نتایج...</p>
-      </div>
-    );
-  }
-  if (error && resultsTableData.length === 0) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen w-full p-6 text-center">
-        <p className="text-xl text-red-500 mb-4">خطا: {error}</p>
-        <button
-          onClick={() => fetchMyGradeResults(1)}
-          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          تلاش مجدد
-        </button>
-      </div>
-    );
-  }
+  // Top 3 for Podium
+  const topThree = rankings.slice(0, 3);
 
   return (
-    <>
-      <div
-        className={`${!visibility ? "hidden opacity-0" : ""} p-6 md:p-8 transition-all duration-500 flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 ${!Open ? "w-[calc(100%-6%)]" : "w-[calc(100%-22%)]"
-          }`}
-      >
-        {/* هدر بالا */}
-        <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
-          <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
-            <h3 className="text-[#19A297] text-xs sm:text-sm">
-              هنرستان استارتاپی رکاد
-            </h3>
-            <BiSolidSchool className="text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl" />
-            {/* <<< تغییر: ۴. جایگزینی دکمه نوتیفیکیشن با کد جدید */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                id="notification-icon-button"
-                onClick={toggleNotificationPanel}
-                className="w-7 h-7 sm:w-8 sm:h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer group relative"
-                aria-label="اعلان‌ها"
-              >
-                <IoNotificationsOutline className="text-gray-400 text-sm sm:text-base" />
-                {unreadCount > 0 && ( // <<<< اینجا از unreadCount استفاده می‌کنیم
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                )}
-              </button>
-              <NotificationPanel
-                isOpen={isNotificationOpen}
-                onClose={closeNotificationPanel}
-                token={token}
-              />
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
+            جدول امتیازات و رتبه‌بندی
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            رتبه‌بندی دانش‌آموزان برتر در پایه تحصیلی {user?.grade || ''}
+          </p>
+        </div>
+
+        {currentUserRankData && (
+          <div className="inline-flex items-center gap-3 p-3 rounded-2xl bg-[#EEF8F7] dark:bg-[#1F413D]/40 border border-[#59BBAF]/40 shadow-[2px_2px_0_#59BBAF]">
+            <Trophy className="w-5 h-5 text-[#59BBAF]" />
+            <div>
+              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block">رتبه شما در پایه</span>
+              <span className="text-sm font-black text-[#1F413D] dark:text-[#EEF8F7]">
+                رتبه {toPersianDigits(currentUserRankData.rank || user?.rankInGrade || 1)} • {toPersianDigits(currentUserRankData.score || user?.score || 0)} امتیاز
+              </span>
             </div>
           </div>
-          <div className="flex justify-center items-center gap-3 sm:gap-5">
-            <p className="text-gray-400 text-xs sm:text-sm">
-              امروز {week}، {day} {month} {year}
-            </p>
-            <h1 className="text-[#59BBAF] font-semibold text-[22px] mr-1">
-              جدول امتیازات
-            </h1>
-          </div>
-        </div>
-
-        {/* نمایش پیام‌های لودینگ و خطا در حین آپدیت جدول */}
-        {loading && resultsTableData.length > 0 && (
-          <p className="text-center text-sm text-gray-500 py-2">
-            در حال به‌روزرسانی جدول...
-          </p>
         )}
-        {error && resultsTableData.length > 0 && !loading && (
-          <p className="text-center text-sm text-red-500 py-2">خطا: {error}</p>
-        )}
-
-        {/* (اختیاری) نمایش رتبه و امتیاز خود کاربر در بالا */}
-        {/* {currentUserInfo && (
-          <div className="mb-6 p-4 bg-indigo-50 rounded-lg shadow text-center">
-            <p className="text-indigo-700">
-              شما، <span className="font-semibold">{currentUserInfo.name}</span>
-              ، با امتیاز{" "}
-              <span className="font-semibold">
-                {formatNumberToPersian(currentUserInfo.score)}
-              </span>
-              ، رتبه{" "}
-              <span className="font-semibold">
-                {formatNumberToPersian(currentUserInfo.rank)}
-              </span>{" "}
-              را در پایه خود دارید.
-            </p>
-          </div>
-        )} */}
-
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[100%] text-sm">
-              <thead className="text-sm uppercase sticky top-0 z-10">
-                {" "}
-                {/* هدر چسبان */}
-                <tr className="h-15">
-                  {headerConfig.map((header) => (
-                    <th
-                      key={header.key}
-                      scope="col"
-
-                      className={`py-3 font-semibold text-center ${header.headerClass}`}
-                    >
-                      {" "}
-                      {/* کاهش padding */}
-                      {header.title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {resultsTableData.length > 0
-                  ? resultsTableData.map((row, idx) => {
-                    const currentLoggedUser = currentUserInfo || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null);
-                    const isMe = currentLoggedUser && (row.id === currentLoggedUser.id || row.userId === currentLoggedUser.id);
-                    return (
-                    <tr
-                      key={row.id || idx}
-                      className={`${isMe ? "bg-[#D4F3F1] " : idx % 2 === 0 ? "bg-white " : "bg-gray-50/60 "} hover:bg-indigo-50/50 transition-colors text-xs`}
-                    >
-                      {" "}
-                      {/* کاهش سایز فونت */}
-                      {headerConfig.map((header) => (
-                        <td
-                          key={`${row.id || idx}-${header.key}`}
-                          onClick={header.key === 'name' ? () => openStudentModal(row) : console.log(row)} // اضافه کردن این خط
-
-                          className={`h-15 py-2.5 font-[600] text-center ${header.cellClass}`}
-                        >
-                          {" "}
-                          {/* کاهش padding */}
-                          {row[header.key]}
-                        </td>
-                      ))}
-                    </tr>
-                    );
-                  })
-                  : !loading && (
-                    <tr>
-                      <td
-                        colSpan={headerConfig.length}
-                        className="text-center py-10 text-gray-500"
-                      >
-                        دانش‌آموزی در این پایه برای نمایش وجود ندارد.
-                      </td>
-                    </tr>
-                  )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* صفحه‌بندی */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center space-x-1 sm:space-x-2 space-x-reverse mt-6 mb-8">
-            {" "}
-            {/* کاهش فاصله */}
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || loading}
-              className="px-3 py-1.5 text-xs sm:text-sm bg-gray-200 hover:bg-gray-300 rounded-md disabled:opacity-50"
-            >
-              {" "}
-              قبلی{" "}
-            </button>
-            {/* منطق نمایش شماره صفحات با ... */}
-            {[...Array(totalPages).keys()].map((num) => {
-              const pageNum = num + 1;
-              if (
-                totalPages <= 5 ||
-                pageNum === 1 ||
-                pageNum === totalPages ||
-                Math.abs(pageNum - currentPage) <= 1 ||
-                (currentPage <= 2 && pageNum <= 3) ||
-                (currentPage >= totalPages - 1 && pageNum >= totalPages - 2)
-              ) {
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    disabled={loading}
-                    className={`px-3 py-1.5 text-xs sm:text-sm rounded-md ${currentPage === pageNum
-                      ? "bg-[#19A297] text-white"
-                      : "bg-white hover:bg-gray-100 border"
-                      }`}
-                  >
-                    {" "}
-                    {pageNum.toLocaleString("fa-IR")}{" "}
-                  </button>
-                );
-              } else if (
-                (currentPage > 3 && pageNum === 2) ||
-                (currentPage < totalPages - 2 && pageNum === totalPages - 1)
-              ) {
-                return (
-                  <span
-                    key={pageNum}
-                    className="px-1 sm:px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    ...
-                  </span>
-                );
-              }
-              return null;
-            })}
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages || loading}
-              className="px-3 py-1.5 text-xs sm:text-sm bg-gray-200 hover:bg-gray-300 rounded-md disabled:opacity-50"
-            >
-              {" "}
-              بعدی{" "}
-            </button>
-            <span className="text-xs text-gray-600 hidden sm:inline">
-              {" "}
-              صفحه {currentPage.toLocaleString("fa-IR")} از{" "}
-              {totalPages.toLocaleString("fa-IR")} (کل:{" "}
-              {totalResultsCount.toLocaleString("fa-IR")}){" "}
-            </span>
-          </div>
-        )}
-        <div className="h-16"></div>
       </div>
-      <StudentProfileModal
-        isOpen={isModalOpen}
-        onClose={closeStudentModal}
-        student={selectedStudent}
-        token={token} // اضافه کردن این خط
-      />
-    </>
+
+      {/* 2. Top 3 Podium (Neo-brutalist) */}
+      {topThree.length >= 3 && page === 1 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+          {/* 2nd Place */}
+          <RokadCard className="text-center p-5 border-gray-300 dark:border-gray-700 sm:order-1 order-2 flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300 flex items-center justify-center font-black text-lg border border-gray-300 dark:border-gray-700">
+                🥈
+              </div>
+              <span className="text-xs font-bold text-gray-400 block">رتبه ۲ پایه</span>
+              <h4 className="text-sm font-black text-[#202A5A] dark:text-white mt-1">
+                {topThree[1].name || topThree[1].fullName}
+              </h4>
+              <span className="text-[11px] text-gray-400">
+                کلاس {toPersianDigits(topThree[1].class)}
+              </span>
+            </div>
+            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800 text-sm font-black text-[#202A5A] dark:text-gray-300">
+              {toPersianDigits(topThree[1].score)} امتیاز
+            </div>
+          </RokadCard>
+
+          {/* 1st Place (Winner) */}
+          <RokadCard className="text-center p-6 border-2 border-amber-400 dark:border-amber-500 shadow-[3.5px_3.5px_0_#F8A41D] sm:order-2 order-1 sm:-mt-3 flex flex-col justify-between bg-gradient-to-b from-amber-50/50 to-white dark:from-amber-950/20 dark:to-[#151C28]">
+            <div>
+              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 flex items-center justify-center font-black text-2xl border border-amber-300 shadow-sm">
+                👑
+              </div>
+              <span className="text-xs font-black text-amber-600 dark:text-amber-400 block">
+                مقام اول پایه
+              </span>
+              <h4 className="text-base font-black text-[#202A5A] dark:text-white mt-1">
+                {topThree[0].name || topThree[0].fullName}
+              </h4>
+              <span className="text-xs text-gray-400">
+                کلاس {toPersianDigits(topThree[0].class)}
+              </span>
+            </div>
+            <div className="mt-3 pt-2 border-t border-amber-200/60 dark:border-amber-900/40 text-base font-black text-amber-600 dark:text-amber-400">
+              {toPersianDigits(topThree[0].score)} امتیاز
+            </div>
+          </RokadCard>
+
+          {/* 3rd Place */}
+          <RokadCard className="text-center p-5 border-amber-700/30 dark:border-amber-900/40 sm:order-3 order-3 flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-amber-900/10 dark:bg-amber-950 text-amber-700 flex items-center justify-center font-black text-lg border border-amber-700/20">
+                🥉
+              </div>
+              <span className="text-xs font-bold text-gray-400 block">رتبه ۳ پایه</span>
+              <h4 className="text-sm font-black text-[#202A5A] dark:text-white mt-1">
+                {topThree[2].name || topThree[2].fullName}
+              </h4>
+              <span className="text-[11px] text-gray-400">
+                کلاس {toPersianDigits(topThree[2].class)}
+              </span>
+            </div>
+            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800 text-sm font-black text-[#202A5A] dark:text-gray-300">
+              {toPersianDigits(topThree[2].score)} امتیاز
+            </div>
+          </RokadCard>
+        </div>
+      )}
+
+      {/* 3. Full Leaderboard Table */}
+      <RokadCard className="p-0 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-xs text-gray-400">در حال دریافت رتبه‌بندی...</div>
+        ) : error ? (
+          <div className="p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-[#202A5A] dark:text-white mb-2">{error}</h4>
+            <RokadButton onClick={() => fetchRankings(1)} variant="primary" size="sm">تلاش مجدد</RokadButton>
+          </div>
+        ) : rankings.length === 0 ? (
+          <div className="p-12 text-center text-xs text-gray-400">داده‌ای یافت نشد.</div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-right text-xs sm:text-sm">
+                <thead className="bg-[#F8F9FA] dark:bg-[#1C2536] text-[#202A5A] dark:text-white font-black border-b border-gray-200 dark:border-gray-800">
+                  <tr>
+                    <th className="p-4 text-center">رتبه</th>
+                    <th className="p-4">دانش‌آموز</th>
+                    <th className="p-4 text-center">کلاس</th>
+                    <th className="p-4 text-center">آموزشی</th>
+                    <th className="p-4 text-center">داوطلبانه</th>
+                    <th className="p-4 text-center">شغلی</th>
+                    <th className="p-4 text-center">کسر امتیاز</th>
+                    <th className="p-4 text-center">امتیاز کل</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rankings.map((row, idx) => {
+                    const isMe = row.id === user?.id || row._id === user?.id || row.idCode === user?.idCode;
+                    const rankNum = row.rank || idx + 1;
+
+                    return (
+                      <tr
+                        key={row.id || row._id || idx}
+                        className={`transition-colors ${
+                          isMe
+                            ? 'bg-[#EEF8F7] dark:bg-[#1F413D]/40 font-bold border-r-4 border-r-[#59BBAF]'
+                            : 'hover:bg-gray-50/80 dark:hover:bg-[#1C2536]/50'
+                        }`}
+                      >
+                        <td className="p-4 text-center">
+                          <span className={`inline-flex items-center justify-center w-7 h-7 rounded-xl font-black text-xs ${
+                            rankNum === 1 ? 'bg-amber-400 text-white' :
+                            rankNum === 2 ? 'bg-gray-300 text-gray-800' :
+                            rankNum === 3 ? 'bg-amber-700 text-white' :
+                            'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                          }`}>
+                            {toPersianDigits(rankNum)}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-[#202A5A] dark:text-white">
+                          <div className="flex items-center gap-2">
+                            <span>{row.name || row.fullName}</span>
+                            {isMe && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#59BBAF] text-white">
+                                شما
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 text-center text-gray-500 dark:text-gray-400">
+                          {toPersianDigits(row.class)}
+                        </td>
+                        <td className="p-4 text-center text-[#652D90] font-bold">
+                          {toPersianDigits(row.educationalActivities || 0)}
+                        </td>
+                        <td className="p-4 text-center text-[#E0195B] font-bold">
+                          {toPersianDigits(row.voluntaryActivities || 0)}
+                        </td>
+                        <td className="p-4 text-center text-[#F8A41D] font-bold">
+                          {toPersianDigits(row.jobActivities || 0)}
+                        </td>
+                        <td className="p-4 text-center text-gray-400">
+                          {toPersianDigits(row.deductions || 0)}
+                        </td>
+                        <td className="p-4 text-center font-black text-sm text-[#202A5A] dark:text-white">
+                          {toPersianDigits(row.score)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {rankings.map((row, idx) => {
+                const isMe = row.id === user?.id || row._id === user?.id || row.idCode === user?.idCode;
+                const rankNum = row.rank || idx + 1;
+
+                return (
+                  <div
+                    key={row.id || row._id || idx}
+                    className={`p-4 space-y-2 ${isMe ? 'bg-[#EEF8F7] dark:bg-[#1F413D]/40' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-xs">
+                          {toPersianDigits(rankNum)}
+                        </span>
+                        <span className="font-bold text-sm text-[#202A5A] dark:text-white">
+                          {row.name || row.fullName}
+                        </span>
+                        {isMe && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#59BBAF] text-white">
+                            شما
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-black text-[#202A5A] dark:text-white">
+                        {toPersianDigits(row.score)} امتیاز
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+                      <span>کلاس {toPersianDigits(row.class)}</span>
+                      <span>آموزشی: {toPersianDigits(row.educationalActivities || 0)} • شغلی: {toPersianDigits(row.jobActivities || 0)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-400">
+              صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+            </span>
+            <div className="flex items-center gap-2">
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => fetchRankings(page - 1)}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span>قبلی</span>
+              </RokadButton>
+              <RokadButton
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => fetchRankings(page + 1)}
+              >
+                <span>بعدی</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </RokadButton>
+            </div>
+          </div>
+        )}
+      </RokadCard>
+    </div>
   );
 }

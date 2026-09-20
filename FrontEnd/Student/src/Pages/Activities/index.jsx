@@ -1,805 +1,326 @@
-import React, { useEffect, useRef, useState } from "react";
-import fetchData from "../../Utils/fetchData";
-import Frame23 from "../../assets/images/Frame23.png"; // برای کارت آمار
-import Frame24 from "../../assets/images/Frame24.png"; // برای بنر فعالیت جدید
-import Message from "../../assets/images/message.png";
-import MessageTick from "../../assets/images/messageTick.png";
-import MessageTime from "../../assets/images/messageTime.png";
-import Group14 from "../../assets/images/Group14.png"; // برای بنر فعالیت جدید
-import Group15 from "../../assets/images/Group15.png"; // برای بنر فعالیت جدید
-import Group16 from "../../assets/images/Group16.png"; // برای بنر فعالیت جدید
+import React, { useEffect, useState } from 'react';
+import fetchData from '../../Utils/fetchData';
+import { toPersianDigits, formatToJalali } from '../../Utils/utils';
+import StatCard from '../../Components/UI/StatCard';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import RokadBadge from '../../Components/UI/RokadBadge';
+import AddActivityModal from './AddActivityModal';
+import ActivityDetailsModal from './ActivityDetailsModal';
+import {
+  CheckCircle2,
+  Clock,
+  ClipboardList,
+  Plus,
+  Eye,
+  Calendar,
+  AlertCircle,
+  Filter
+} from 'lucide-react';
 
-
-import { BiSolidSchool } from "react-icons/bi";
-import { IoNotificationsOutline } from "react-icons/io5";
-import { FaPlus } from "react-icons/fa";
-import { BsChatDots, BsChatFill, BsChatText } from "react-icons/bs";
-import { IoChevronDown } from "react-icons/io5";
-import AddActivityModal from "./AddActivityModal"; // مسیر صحیح به کامپوننت مودال
-import ActivityDetailsModal from "./ActivityDetailsModal";
-import NotificationPanel from "../../Components/NotificationPanel";
-// NotificationPanel را هم اگر لازم دارید import کنید
-// import NotificationPanel from '../../Components/NotificationPanel';
-
-export default function Activities({ Open , handleRefresh}) {
-  // نام کامپوننت را Activities نگه می‌داریم
+export default function Activities() {
   const token = localStorage.getItem("token");
-  const date = new Date();
-  const month = new Intl.DateTimeFormat("fa-IR", { month: "long" }).format(
-    date
-  );
-  const day = new Intl.DateTimeFormat("fa-IR", { day: "numeric" }).format(date);
-  // برای نمایش سال به صورت عدد فارسی در هدر (اختیاری)
-  const year = new Intl.DateTimeFormat("fa-IR", { year: "numeric" }).format(
-    date
-  );
-  const week = new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(
-    date
-  );
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
-  const [statCardData, setStatCardData] = useState({
-    pendingStudentActivities: 0,
+  const [stats, setStats] = useState({
     approvedStudentActivities: 0,
+    pendingStudentActivities: 0,
     totalAllActivities: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
-  const [errorStats, setErrorStats] = useState(null);
 
-  const [activitiesList, setActivitiesList] = useState([]);
-  const [loadingActivities, setLoadingActivities] = useState(true);
-  const [errorActivities, setErrorActivities] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'approved', 'pending', 'admin'
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-
-  const [activityCount, setActivityCount] = useState(0);
-  const [activities, setActivities] = useState(0);
-
-
-
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0); // استیت برای نگهداری تعداد اعلان‌ها
-  const notificationRef = useRef(null);
-
-
-
-  const fetchNotificationsList = async () => {
-
-
-    try {
-      // اندپوینت بک‌اند خودش تشخیص می‌دهد چه اعلان‌هایی را برگرداند
-      const response = await fetchData('notifications', {
-        headers: { authorization: `Bearer ${token}` }
-      });
-
-      if (response.success && Array.isArray(response.data)) {
-        setActivityCount(response.totalCountActivity);
-
-      } else {
-        setError(response.message || 'خطا در دریافت اطلاعات.');
-      }
-    } catch (err) {
-      console.log(err.message || 'خطای شبکه.');
-    }
-  };
-  useEffect(() => {
-    fetchNotificationsList()
-
-  }, [])
-
-  const refreshUnreadCount = async () => {
+  const fetchStats = async () => {
     if (!token) return;
     try {
-      const response = await fetchData('notifications?filter=unread', {
+      const res = await fetchData('my-activities/stats', {
         headers: { authorization: `Bearer ${token}` }
       });
-      if (response.success) {
-        setActivities(response.data)
-        setUnreadCount(response.totalCount || 0);
-      }
-    } catch (error) {
-      console.error("Failed to refresh unread count:", error);
-    }
-  };
-
-  const toggleNotificationPanel = () => setIsNotificationOpen((prev) => !prev);
-  const closeNotificationPanel = () => {
-    setIsNotificationOpen(false);
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-  };
-  // ۲. دریافت اطلاعات هدر و تعداد اعلان‌ها
-  useEffect(() => {
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-
-    handleRefresh(notifications)
-
-
-  }, [token,notifications]);
-
-  const isActivityNew = (activity) => {
-    if (activities) {
-
-
-      const notificationActivities = activities.filter((e, i) => e.type === "activity_status").filter((e, i) => e.isRead === false)
-      // console.log(activity)
-      const check = notificationActivities.filter((e, i) => e.activityId == activity?._id)
-      // console.log(notificationActivities, check)
-      if (check.length > 0) {
-        return {status:true,Id:check[0]._id}
-      }
-      return false;
-    }
-  }
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target)
-      ) {
-        const notificationIcon = document.getElementById(
-          "notification-icon-button"
-        );
-        if (notificationIcon && notificationIcon.contains(event.target)) return;
-        setIsNotificationOpen(false);
-      }
-    }
-    if (isNotificationOpen)
-      document.addEventListener("mousedown", handleClickOutside);
-    else document.removeEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isNotificationOpen]);
-
-  const [filters, setFilters] = useState({
-    status: "",
-    activityTitle: "",
-    entryType: "", // <-- فقط این خط اضافه میشه
-
-    // dateRange: { from: null, to: null } // برای فیلتر تاریخ اگر لازم شد
-  });
-  const [sort, setSort] = useState({ sortBy: "submissionDate", order: "desc" });
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalCount: 0,
-    limit: 5, // تعداد آیتم در هر صفحه
-  });
-
-  const [openFilterDropdowns, setOpenFilterDropdowns] = useState({
-    status: false,
-    entryType: false, // <-- فقط این خط اضافه میشه
-
-    // date: false, // اگر فیلتر تاریخ دارید
-  });
-
-  // State و توابع برای پنل نوتیفیکیشن (اگر در این صفحه هم استفاده می‌شود)
-  // const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  // const notificationRef = useRef(null);
-  // const toggleNotificationPanel = () => setIsNotificationOpen(prev => !prev);
-  // const closeNotificationPanel = () => setIsNotificationOpen(false);
-  // useEffect(() => { /* ... منطق بستن پنل نوتیفیکیشن ... */ }, [isNotificationOpen]);
-
-  // Fetch Stat Card Data
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!token) {
-        setErrorStats("توکن احراز هویت یافت نشد.");
-        setLoadingStats(false);
-        return;
-      }
-      setLoadingStats(true);
-      setErrorStats(null);
-      try {
-        const response = await fetchData("my-activities/my-stats", {
-          // مسیر اندپوینت بک‌اند شما
-          headers: { authorization: `Berear ${token}` },
+      if (res.success && res.data) {
+        setStats({
+          approvedStudentActivities: res.data.approvedCount || 0,
+          pendingStudentActivities: res.data.pendingCount || 0,
+          totalAllActivities: (res.data.approvedCount || 0) + (res.data.pendingCount || 0) + (res.data.adminTotal || 0),
         });
-        if (response.success && response.data) {
-          setStatCardData({
-            pendingStudentActivities:
-              response.data.pendingStudentActivities || 0,
-            approvedStudentActivities:
-              response.data.approvedStudentActivities || 0,
-            totalAllActivities: response.data.totalAllActivities || 0,
-          });
-        } else {
-          setErrorStats(response.message || "خطا در دریافت آمار فعالیت‌ها.");
-        }
-      } catch (err) {
-        setErrorStats("خطای شبکه یا سرور (آمار): " + err.message);
-      } finally {
-        setLoadingStats(false);
       }
-    };
-    fetchStats();
-  }, [token]);
-
-  // Fetch Activities List
-  useEffect(() => {
-    const fetchActivities = async () => {
-      if (!token) {
-        setErrorActivities("توکن احراز هویت یافت نشد.");
-        setLoadingActivities(false);
-        return;
-      }
-      setLoadingActivities(true);
-      setErrorActivities(null);
-
-      const queryParams = new URLSearchParams();
-      if (filters.status) queryParams.append("status", filters.status);
-      if (filters.activityTitle)
-        queryParams.append("activityTitle", filters.activityTitle);
-      if (filters.entryType) queryParams.append("entryType", filters.entryType); // <-- اضافه کردن این خط
-
-      // if (filters.dateRange.from) queryParams.append('dateFrom', filters.dateRange.from.toISOString());
-      // if (filters.dateRange.to) queryParams.append('dateTo', filters.dateRange.to.toISOString());
-      queryParams.append("sortBy", sort.sortBy);
-      queryParams.append("order", sort.order);
-      queryParams.append("page", pagination.currentPage);
-      queryParams.append("limit", pagination.limit);
-
-      try {
-        const response = await fetchData(
-          `my-activities/my-list?${queryParams.toString()}`,
-          {
-            headers: { authorization: `Berear ${token}` },
-          }
-        );
-        if (response.success && response.data) {
-          setActivitiesList(response.data);
-          setPagination((prev) => ({
-            ...prev,
-            totalPages: response.totalPages || 1,
-            totalCount: response.totalCount || 0,
-            currentPage: response.currentPage || 1,
-          }));
-        } else {
-          setErrorActivities(
-            response.message || "خطا در دریافت لیست فعالیت‌ها."
-          );
-          setActivitiesList([]);
-        }
-      } catch (err) {
-        setErrorActivities("خطای شبکه یا سرور (لیست): " + err.message);
-        setActivitiesList([]);
-      } finally {
-        setLoadingActivities(false);
-      }
-    };
-    fetchActivities();
-  }, [token, filters, sort, pagination.currentPage, pagination.limit]);
-
-  const handleOpenDetailsModal = (activity) => {
-    setSelectedActivity(activity);
-    setIsDetailsModalOpen(true);
-    const notifId=isActivityNew(activity)
-
-    handleMarkAsRead(notifId.Id)
-  };
-
-  const handleCloseDetailsModal = () => {
-    setIsDetailsModalOpen(false);
-    setSelectedActivity(null);
-  };
-
-  const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => setIsModalOpen(false);
-
-  const refreshData = async () => {
-    // رفرش کردن آمار
-    if (token) {
-      setLoadingStats(true);
-      try {
-        const statsRes = await fetchData("my-activities/my-stats", {
-          headers: { authorization: `Berear ${token}` },
-        });
-        if (statsRes.success && statsRes.data) setStatCardData(statsRes.data);
-      } catch (err) {
-        console.error("Error refreshing stats:", err);
-      } finally {
-        setLoadingStats(false);
-      }
-    }
-    // رفرش کردن لیست فعالیت ها (با برگرداندن به صفحه اول)
-    setPagination((prev) => ({ ...prev, currentPage: 1 }));
-    // useEffect مربوط به activitiesList با تغییر pagination.currentPage اجرا و لیست را رفرش می‌کند.
-  };
-
-  const handleActivitySubmit = (dataFromModal) => {
-    // console.log("Activity Data Submitted to Parent Component:", dataFromModal);
-    setIsModalOpen(false);
-    // پس از ثبت موفق در مودال و ارسال به بک‌اند (که در خود مودال انجام می‌شود)
-    // اینجا فقط داده‌ها را رفرش می‌کنیم
-    refreshData();
-  };
-
-  const handleFilterChange = (filterName, value) => {
-    setFilters((prev) => ({ ...prev, [filterName]: value }));
-    setPagination((prev) => ({ ...prev, currentPage: 1 }));
-    if (filterName === "status") {
-      // بستن دراپ‌داون وضعیت پس از انتخاب
-      setOpenFilterDropdowns((prev) => ({ ...prev, status: false }));
-    }
-  };
-
-  const handleSortChange = (newSortBy) => {
-    setSort((prev) => ({
-      sortBy: newSortBy,
-      order:
-        prev.sortBy === newSortBy
-          ? prev.order === "asc"
-            ? "desc"
-            : "asc"
-          : "desc",
-    }));
-    setPagination((prev) => ({ ...prev, currentPage: 1 }));
-  };
-
-  const handleMarkAsRead = async (id) => {
-    // Optimistic UI update
-    setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
-    try {
-      // بک‌اند برای خوانده‌شدن یک اعلان خاص
-      await fetchData(`notifications/mark-as-read/${id}`, {
-        method: 'PATCH',
-        headers: { authorization: `Bearer ${token}` },
-      });
     } catch (err) {
-      console.error("Failed to mark notification as read", err);
-      // Rollback on error
-      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: false } : n));
+      console.error(err);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination((prev) => ({ ...prev, currentPage: newPage }));
+  const fetchActivities = async () => {
+    if (!token) return;
+    setLoadingList(true);
+    try {
+      let query = `my-activities?page=${page}&limit=10`;
+      if (filterStatus === 'approved') query += `&status=approved&entryType=student`;
+      else if (filterStatus === 'pending') query += `&status=pending&entryType=student`;
+      else if (filterStatus === 'admin') query += `&entryType=admin`;
+
+      const res = await fetchData(query, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (res.success && Array.isArray(res.data)) {
+        setActivities(res.data);
+        setTotalPages(res.totalPages || 1);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingList(false);
     }
   };
 
-  const toggleFilterDropdown = (filterName) => {
-    setOpenFilterDropdowns((prev) => ({
-      ...Object.keys(prev).reduce((acc, key) => {
-        acc[key] = false;
-        return acc;
-      }, {}),
-      [filterName]: !prev[filterName],
-    }));
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [filterStatus, page]);
+
+  const handleActivityAdded = () => {
+    fetchStats();
+    fetchActivities();
   };
 
-  const statusOptions = [
-    { value: "", label: "همه وضعیت‌ها" },
-    { value: "pending", label: "در انتظار بررسی" },
-    { value: "approved", label: "تایید شده" },
-    { value: "rejected", label: "تایید نشده" },
-    // می‌توانید "ثبت توسط ادمین" را هم اضافه کنید اگر بک‌اند آن را به عنوان یک وضعیت برمی‌گرداند
-    // { value: 'admin_approved', label: 'ثبت توسط ادمین' },
-  ];
-  const entryTypeOptions = [
-    { value: "", label: "همه انواع ثبت" },
-    { value: "student", label: "ثبت توسط من" },
-    { value: "admin", label: "ثبت توسط ادمین" },
-  ];
-
-  const statCardsDisplayData = [
-    {
-      title: "فعالیت‌های در انتظار بررسی",
-      count: statCardData.pendingStudentActivities,
-      iconSrc: MessageTime,
-      bgColorClass: "bg-yellow-500",
-      textColorClass: "text-yellow-700",
-      iconBgColorClass: "bg-yellow-400",
-    },
-    {
-      title: "فعالیت‌های تأییدشده",
-      count: statCardData.approvedStudentActivities,
-      iconSrc: MessageTick,
-      bgColorClass: "bg-green-500",
-      textColorClass: "text-green-700",
-      iconBgColorClass: "bg-green-400",
-    },
-    {
-      title: "همۀ فعالیت‌ها",
-      count: statCardData.totalAllActivities,
-      iconSrc: Message,
-      bgColorClass: "bg-blue-500",
-      textColorClass: "text-blue-700",
-      iconBgColorClass: "bg-blue-400",
-    },
-  ];
+  const getStatusBadge = (status) => {
+    if (status === 'approved' || status === 'ثبت توسط ادمین') {
+      return (
+        <RokadBadge
+          variant="approved"
+          label={status === 'ثبت توسط ادمین' ? 'ثبت ادمین' : 'تایید شده'}
+        />
+      );
+    }
+    if (status === 'pending') {
+      return <RokadBadge variant="pending" label="در انتظار بررسی" />;
+    }
+    return <RokadBadge variant="rejected" label="رد شده" />;
+  };
 
   return (
-    <>
-      <div
-        className={`${!Open ? "w-[calc(100%-6%)]" : "w-[calc(100%-23%)]"
-          } p-6 md:p-8 transition-all duration-500 flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100`}
-      >
-        {/* هدر بالا */}
-        <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
-          <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
-            <h3 className="text-[#19A297] text-xs sm:text-sm">
-              هنرستان استارتاپی رکاد
-            </h3>
-            <BiSolidSchool className="text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl" />
-            {/* ۳. استفاده از استیت جدید در JSX */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                id="notification-icon-button"
-                onClick={toggleNotificationPanel}
-                className="w-7 h-7 sm:w-8 sm:h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer group relative"
-                aria-label="اعلان‌ها"
-              >
-                <IoNotificationsOutline className="text-gray-400 text-sm sm:text-base" />
-                {unreadCount > 0 && ( // <<<< اینجا از unreadCount استفاده می‌کنیم
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                )}
-              </button>
-              <NotificationPanel
-                isOpen={isNotificationOpen}
-                onClose={closeNotificationPanel}
-                token={token}
-              />
-            </div>
-          </div>
-          <div className="flex justify-center items-center gap-3 sm:gap-5">
-            <p className="text-gray-400 text-xs sm:text-sm">
-              امروز {week}، {day} {month} ماه {year}
-            </p>
-            <h1 className="text-[#59BBAF] font-semibold text-[22px]">
-              فعالیت‌های من
-            </h1>
-          </div>
-        </div>
-        {/* کارت‌های آماری بالا */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 mb-6">
-          {loadingStats &&
-            Array(3)
-              .fill(0)
-              .map(
-                (
-                  _,
-                  i // Skeleton loader
-                ) => (
-                  <div
-                    key={i}
-                    className="relative bg-gray-200 animate-pulse p-6 rounded-xl shadow-lg min-h-[180px]"
-                  ></div>
-                )
-              )}
-          {errorStats && (
-            <p className="col-span-full text-center text-red-500 bg-red-100 p-4 rounded-md">
-              {errorStats}
-            </p>
-          )}
-          {!loadingStats &&
-            !errorStats &&
-            statCardsDisplayData.map((card, idx) => (
-              <div
-                key={idx}
-                className={`relative p-6 rounded-xl shadow-lg w-85 flex flex-col items-center justify-center text-center min-h-[180px] overflow-hidden `}
-              >
-                <img
-                  src={idx == 0 ? Group16 : idx == 1 ? Group15 : idx == 2 ? Group14 : null}
-                  className="absolute z-0 h-full w-full object-cover scale-110 top-[10px]"
-                  alt=""
-                />
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/30 rounded-full opacity-50"></div>
-                <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-white/20 rounded-full opacity-50"></div>
-                <div
-                  className={`w-16 h-16 rounded-full  flex items-center justify-center mb-3 z-10`}
-                >
-                  {/* <img src={card.iconSrc} className="text-white text-3xl" /> */}
-                </div>
-                <h2
-                  className={`text-xl font-semibold mb-3 z-10 text-[#D41A54] mt-10`}
-                >
-                  {card.title}
-                </h2>
-                <p className={`text-3xl font-bold z-10 text-[#D41A54]`}>
-                  {card.count?.toLocaleString("fa-IR") || "۰"}
-                </p>
-              </div>
-            ))}
-        </div>
-        {/* بنر ثبت فعالیت جدید */}
-        <div className="bg-pink-50 h-30 p-4 sm:p-6 rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between mb-8 relative overflow-hidden">
-          <img
-            src={Frame24}
-            className="absolute z-0 h-full w-full object-cover scale-105 top-0 left-0"
-            alt=""
-          />
-          <div className="flex items-center gap-3 z-10 mb-3 sm:mb-0 text-right">
-            <button
-              onClick={handleOpenModal}
-              className="bg-white cursor-pointer text-[#D41A54] z-10 hover:scale-105 duration-100 transition-transform px-4 py-2 rounded-full text-xs sm:text-sm font-medium flex items-center gap-1.5"
-            >
-              {" "}
-              <FaPlus /> اضافه کردن{" "}
-            </button>
-            <p className="text-[#FF9ABA] z-10 text-xs sm:text-sm font-medium">
-              برای ثبت فعالیت جدید بر روی اضافه کردن ضربه بزنید
-            </p>
-          </div>
-          <div className="flex items-center gap-3 z-10">
-            <h2 className="text-[#D41A54] font-semibold text-lg sm:text-xl mr-2">
-              فعالیت جدید
-            </h2>
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#D41A54] flex items-center justify-center">
-              {/* <BsChatText className="text-white text-2xl sm:text-3xl" /> */}
-              <img src={Message} className="scale-60" alt="" />
-
-            </div>
-          </div>
-        </div>
-        {/* فیلترها و عنوان جدول */}
-        <div className="flex mt-10 flex-col sm:flex-row justify-between items-center mb-5">
-          <div className="flex flex-wrap gap-3 mb-4 sm:mb-0">
-            {/* فیلتر وضعیت */}
-            <div className="relative">
-              <button
-                onClick={() => toggleFilterDropdown("status")}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm flex items-center justify-between min-w-[150px] hover:border-gray-400 transition-colors"
-              >
-                <span>
-                  وضعیت:{" "}
-                  {statusOptions.find((opt) => opt.value === filters.status)
-                    ?.label || "همه"}
-                </span>
-                <IoChevronDown
-                  className={`text-gray-500 transition-transform duration-200 ${openFilterDropdowns.status ? "rotate-180" : ""
-                    }`}
-                />
-              </button>
-              {openFilterDropdowns.status && (
-                <div className="absolute z-20 top-full right-0 sm:left-0 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg py-1">
-                  {statusOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleFilterChange("status", opt.value)}
-                      className="block w-full text-right px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* JSX فیلتر جدید */}
-            <div className="relative">
-              <button
-                onClick={() => toggleFilterDropdown("entryType")}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm flex items-center justify-between min-w-[150px] hover:border-gray-400 transition-colors"
-              >
-                <span>
-                  نوع ثبت:{" "}
-                  {entryTypeOptions.find(
-                    (opt) => opt.value === filters.entryType
-                  )?.label || "همه"}
-                </span>
-                <IoChevronDown
-                  className={`text-gray-500 transition-transform duration-200 ${openFilterDropdowns.entryType ? "rotate-180" : ""
-                    }`}
-                />
-              </button>
-              {openFilterDropdowns.entryType && (
-                <div className="absolute z-20 top-full right-0 sm:left-0 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg py-1">
-                  {entryTypeOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleFilterChange("entryType", opt.value)}
-                      className="block w-full text-right px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* فیلتر عنوان (یک اینپوت ساده) */}
-            <input
-              type="text"
-              placeholder="جستجو در عنوان فعالیت..."
-              value={filters.activityTitle}
-              onChange={(e) =>
-                handleFilterChange("activityTitle", e.target.value)
-              }
-              className="bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm focus:border-[#19A297] focus:ring-1 focus:ring-[#19A297] outline-none"
-            />
-          </div>
-          <h2 className="text-[22px] font-semibold text-[#59BBAF]">
-            آخرین فعالیت‌ها
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Header & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-[#202A5A] dark:text-white">
+            فعالیت‌ها و دستاوردها
           </h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            ثبت، پیگیری وضعیت و بررسی امتیازات فعالیت‌های شما
+          </p>
         </div>
-        {/* جدول فعالیت‌ها */}
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            {loadingActivities && (
-              <p className="text-center py-10 text-gray-600">
-                در حال بارگذاری لیست فعالیت‌ها...
-              </p>
-            )}
-            {errorActivities && (
-              <p className="text-center py-10 text-red-600 bg-red-100 p-4 rounded-md">
-                {errorActivities}
-              </p>
-            )}
-            {!loadingActivities &&
-              !errorActivities &&
-              activitiesList.length === 0 && (
-                <p className="text-center py-10 text-gray-500">
-                  فعالیتی برای نمایش یافت نشد.
-                </p>
-              )}
-            {!loadingActivities &&
-              !errorActivities &&
-              activitiesList.length > 0 && (
-                <table className="w-full min-w-[700px] text-sm">
-                  <thead className="bg-gray-50">
-                    <tr className="h-15">
-                      {/* برای ستون‌های قابل مرتب‌سازی، onClick اضافه کنید */}
-                      <th
-                        onClick={() => handleSortChange("status")}
-                        className="px-4 border-left-none border-2 border-solid border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
-                      >
-                        وضعیت{" "}
-                        {sort.sortBy === "status" &&
-                          (sort.order === "asc" ? "↑" : "↓")}
-                      </th>
-                      <th
-                        onClick={() => handleSortChange("reviewDate")}
-                        className="px-4 border-2 border-solid border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
-                      >
-                        تاریخ بررسی{" "}
-                        {sort.sortBy === "reviewDate" &&
-                          (sort.order === "asc" ? "↑" : "↓")}
-                      </th>
-                      <th
-                        onClick={() => handleSortChange("submissionDate")}
-                        className="px-4 border-2 border-solid border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
-                      >
-                        تاریخ ثبت{" "}
-                        {sort.sortBy === "submissionDate" &&
-                          (sort.order === "asc" ? "↑" : "↓")}
-                      </th>
-                      <th className="px-4 border-2 border-solid border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        شرح
-                      </th>
-                      <th
-                        onClick={() => handleSortChange("activityName")}
-                        className="px-4 border-2 border-solid border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer"
-                      >
-                        عنوان{" "}
-                        {sort.sortBy === "activityName" &&
-                          (sort.order === "asc" ? "↑" : "↓")}
-                      </th>
-                      <th className="px-4 border-2 border-solid  border-[#F2F2F2] border-top-none py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        امتیاز
-                      </th>
-                      <th className="px-4 border-2 border-top-none border-right-none border-solid border-[#F2F2F2] py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        نوع ثبت
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y rtl divide-gray-200">
-                    {activitiesList.map((activity, idx) => {
-                      let statusText = activity.status;
-                      let statusColor = "text-gray-500";
-                      if (activity.status === "approved") {
-                        statusText = "تایید شده";
-                        statusColor = "text-green-500";
-                      } else if (activity.status === "rejected") {
-                        statusText = "تایید نشده";
-                        statusColor = "text-red-500";
-                      } else if (activity.status === "pending") {
-                        statusText = "در انتظار";
-                        statusColor = "text-yellow-500";
-                      } else if (activity.status === "ثبت توسط ادمین") {
-                        statusColor = "text-blue-500";
-                      }
 
-                      return (
-                        <tr
-                          key={activity._id || idx}
-                          onClick={() => handleOpenDetailsModal(activity)}
-                          className={`${isActivityNew(activity) ? "bg-[#D4F3F1]" : ""} ${idx % 2 === 0 && !isActivityNew(activity) ? "bg-white" : !isActivityNew(activity) ? "bg-gray-50/50" : ""
-                            }  hover:bg-gray-100 transition-colors`}
-                        >
-                          <td
-                            className={`px-4 border-left-none border-2 border-solid border-[#F2F2F2] text-center py-3 h-15 whitespace-nowrap font-semibold ${statusColor}`}
-                          >
-                            {statusText}
-                          </td>
-                          <td className="px-4 border-2 border-solid border-[#F2F2F2] text-center py-3 whitespace-nowrap text-gray-600">
-                            {activity.reviewDate
-                              ? new Intl.DateTimeFormat("fa-IR", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              }).format(new Date(activity.reviewDate))
-                              : "-"}
-                          </td>
-                          <td className="px-4 border-2 border-solid border-[#F2F2F2] text-center py-3 whitespace-nowrap text-gray-600">
-                            {activity.submissionDate
-                              ? new Intl.DateTimeFormat("fa-IR", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              }).format(new Date(activity.submissionDate))
-                              : "-"}
-                          </td>
-                          <td
-                            className="px-4 border-2 border-solid border-[#F2F2F2] text-center py-3 whitespace-nowrap text-gray-600 max-w-[200px] truncate"
-                            title={activity.descriptionFromEntry}
-                          >
-                            {activity.descriptionFromEntry || "-"}
-                          </td>
-                          <td className="px-4 border-2 border-solid border-[#F2F2F2] text-center py-3 whitespace-nowrap text-gray-800 font-medium">
-                            {activity.activityName || "نامشخص"}
-                          </td>
-                          <td className="px-4 border-2 border-solid border-[#F2F2F2] text-center py-3 whitespace-nowrap text-gray-600 font-semibold">
-                            {activity.scoreAwarded?.toLocaleString("fa-IR") ??
-                              "-"}
-                          </td>
-                          <td className="px-4 border-2 border-solid border-[#F2F2F2] border-right-none text-center py-3 whitespace-nowrap text-gray-500">
-                            {activity.type || "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-          </div>
-          {/* Pagination Controls */}
-          {!loadingActivities &&
-            !errorActivities &&
-            activitiesList.length > 0 &&
-            pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 p-4 bg-gray-50 rounded-b-xl border-t border-gray-200">
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
-                >
-                  قبلی
-                </button>
-                <span className="text-sm text-gray-700">
-                  صفحه {pagination.currentPage.toLocaleString("fa-IR")} از{" "}
-                  {pagination.totalPages.toLocaleString("fa-IR")} (کل:{" "}
-                  {pagination.totalCount?.toLocaleString("fa-IR") || "۰"})
-                </span>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
-                >
-                  بعدی
-                </button>
-              </div>
-            )}
-        </div>
-        <div className="h-16"></div> {/* Padding at bottom */}
+        <RokadButton
+          onClick={() => setIsAddModalOpen(true)}
+          variant="primary"
+          icon={Plus}
+          size="md"
+        >
+          ثبت فعالیت جدید
+        </RokadButton>
       </div>
 
+      {/* 2. Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        <StatCard
+          title="فعالیت‌های تایید شده"
+          value={stats.approvedStudentActivities}
+          subtitle="امتیاز به حساب شما اضافه شد"
+          icon={CheckCircle2}
+          theme="ecosystem"
+        />
+        <StatCard
+          title="در انتظار بررسی"
+          value={stats.pendingStudentActivities}
+          subtitle="در صف بررسی دبیران هنرستان"
+          icon={Clock}
+          theme="college"
+        />
+        <StatCard
+          title="کل فعالیت‌های ثبت‌شده"
+          value={stats.totalAllActivities}
+          subtitle="مجموع فعالیت‌های فردی و گروهی"
+          icon={ClipboardList}
+          theme="male"
+        />
+      </div>
+
+      {/* 3. Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-[#151C28] border border-gray-200 dark:border-gray-800 shadow-[2px_2px_0_#202A5A] dark:shadow-[2px_2px_0_#59BBAF]">
+        {[
+          { id: 'all', label: 'همه فعالیت‌ها' },
+          { id: 'approved', label: 'تایید شده' },
+          { id: 'pending', label: 'در انتظار بررسی' },
+          { id: 'admin', label: 'ثبت‌شده توسط مدرسه' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => {
+              setFilterStatus(tab.id);
+              setPage(1);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              filterStatus === tab.id
+                ? 'bg-[#59BBAF] text-white shadow-[2px_2px_0_#1F413D]'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 4. Activities Data Table / Card View */}
+      <RokadCard className="p-0 overflow-hidden">
+        {loadingList ? (
+          <div className="p-12 text-center text-xs text-gray-400">
+            در حال بارگذاری لیست فعالیت‌ها...
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="p-12 text-center">
+            <ClipboardList className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-[#202A5A] dark:text-white mb-1">
+              فعالیتی با این فیلتر یافت نشد
+            </h4>
+            <p className="text-xs text-gray-400 mb-4">
+              می‌توانید فعالیت جدیدی ثبت کنید تا پس از بررسی امتیاز دریافت نمایید.
+            </p>
+            <RokadButton
+              onClick={() => setIsAddModalOpen(true)}
+              variant="primary"
+              size="sm"
+              icon={Plus}
+            >
+              ثبت فعالیت جدید
+            </RokadButton>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-right text-xs sm:text-sm">
+                <thead className="bg-[#F8F9FA] dark:bg-[#1C2536] text-[#202A5A] dark:text-white font-black border-b border-gray-200 dark:border-gray-800">
+                  <tr>
+                    <th className="p-4">عنوان فعالیت</th>
+                    <th className="p-4">جزئیات / مقدار</th>
+                    <th className="p-4">تاریخ ثبت</th>
+                    <th className="p-4">وضعیت</th>
+                    <th className="p-4">امتیاز کسب‌شده</th>
+                    <th className="p-4 text-center">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {activities.map((item) => (
+                    <tr
+                      key={item.id || item._id}
+                      className="hover:bg-gray-50/80 dark:hover:bg-[#1C2536]/50 transition-colors"
+                    >
+                      <td className="p-4 font-bold text-[#202A5A] dark:text-white">
+                        {item.activityName}
+                      </td>
+                      <td className="p-4 text-gray-600 dark:text-gray-300 max-w-xs truncate">
+                        {item.details || '—'}
+                      </td>
+                      <td className="p-4 text-gray-500 dark:text-gray-400">
+                        {formatToJalali(item.submissionDate || item.sortDate)}
+                      </td>
+                      <td className="p-4">{getStatusBadge(item.status)}</td>
+                      <td className="p-4 font-black text-[#59BBAF]">
+                        {item.scoreAwarded > 0
+                          ? `+${toPersianDigits(item.scoreAwarded)}`
+                          : toPersianDigits(item.scoreAwarded)}
+                      </td>
+                      <td className="p-4 text-center">
+                        <RokadButton
+                          onClick={() => {
+                            setSelectedActivity(item);
+                            setIsDetailsModalOpen(true);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          icon={Eye}
+                        >
+                          جزئیات
+                        </RokadButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+              {activities.map((item) => (
+                <div key={item.id || item._id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-bold text-[#202A5A] dark:text-white">
+                      {item.activityName}
+                    </h4>
+                    {getStatusBadge(item.status)}
+                  </div>
+
+                  {item.details && (
+                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                      جزئیات: {item.details}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-2 text-xs border-t border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-400">
+                      {formatToJalali(item.submissionDate || item.sortDate)}
+                    </span>
+                    <span className="font-black text-[#59BBAF]">
+                      {item.scoreAwarded > 0
+                        ? `+${toPersianDigits(item.scoreAwarded)} امتیاز`
+                        : `${toPersianDigits(item.scoreAwarded)} امتیاز`}
+                    </span>
+                  </div>
+
+                  <RokadButton
+                    onClick={() => {
+                      setSelectedActivity(item);
+                      setIsDetailsModalOpen(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    icon={Eye}
+                    className="w-full"
+                  >
+                    مشاهده جزئیات
+                  </RokadButton>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </RokadCard>
+
+      {/* Modals */}
       <AddActivityModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onSubmit={handleActivitySubmit} // این تابع باید لیست را رفرش کند
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleActivityAdded}
         token={token}
-      // پاس دادن activityCategories به مودال اگر لازم است
-      // activityCategories={activityCategories}
-      // loadingActivityCategories={loadingStats && activityCategories.length === 0}
       />
-      {/* <<< ۵. رندر کردن مودال جدید >>> */}
+
       <ActivityDetailsModal
         isOpen={isDetailsModalOpen}
-        onClose={handleCloseDetailsModal}
+        onClose={() => setIsDetailsModalOpen(false)}
         activity={selectedActivity}
       />
-    </>
+    </div>
   );
 }

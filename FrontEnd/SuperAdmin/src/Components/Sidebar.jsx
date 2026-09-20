@@ -1,182 +1,190 @@
-import React, { useState } from 'react'
-import KAlogo from '../assets/images/K-LogoGreen.png'
-import right from '../assets/images/right.png'
-import aziz from '../assets/images/aziz.png'
-import { TbPencilPlus } from "react-icons/tb";
-import { BsFillGridFill } from "react-icons/bs";
-import { LuMails } from "react-icons/lu";
-import { IoIosArrowDown } from "react-icons/io";
-import { FaMedal } from "react-icons/fa";
-import { MdBackupTable, MdOutlinePlaylistAdd } from "react-icons/md";
-import { IoIosArrowForward } from "react-icons/io";
-import { IoIosArrowBack } from "react-icons/io";
-import { SlArrowDown, SlArrowUp } from "react-icons/sl";
-import frame50 from '../assets/images/Frame50.png'
+import React from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  UserPlus,
+  ListPlus,
+  Gift,
+  FileCheck2,
+  Table,
+  LogOut,
+  X,
+  ShieldAlert,
+  Sparkles,
+  Award
+} from 'lucide-react';
+import { toPersianDigits } from '../Utils/utils';
 
+const navItems = [
+  {
+    to: '/',
+    label: 'داشبورد مدیریت ارشد',
+    icon: LayoutDashboard,
+    badge: 'اصلی',
+    color: 'male',
+  },
+  {
+    to: '/add-users',
+    label: 'ثبت‌نام گروهی کاربران',
+    icon: UserPlus,
+    color: 'college',
+  },
+  {
+    to: '/add-activity',
+    label: 'بارگذاری گروهی فعالیت‌ها',
+    icon: ListPlus,
+    color: 'female',
+  },
+  {
+    to: '/rewards',
+    label: 'بارگذاری کاتالوگ پاداش‌ها',
+    icon: Gift,
+    color: 'club',
+  },
+  {
+    to: '/requests',
+    label: 'کارتابل درخواست‌های فعالیت',
+    icon: FileCheck2,
+    color: 'male',
+  },
+  {
+    to: '/results',
+    label: 'جداول امتیازات و گزارشات',
+    icon: Table,
+    color: 'ecosystem',
+  },
+];
 
-import { Link, useNavigate } from 'react-router-dom';
-import { RiUserAddLine } from 'react-icons/ri';
+export default function Sidebar({ isOpen, onClose }) {
+  const navigate = useNavigate();
 
-export default function Sidebar({ activeNum = 1, getOpen }) {
-    const navigate = useNavigate()
-    const [active, setActive] = useState(1)
-    // if (active != activeNum) {
-    //     setActive(activeNum)
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
-    // }
-    const userString = localStorage.getItem('user');
-    const user = userString ? JSON.parse(userString) : null;
-    const handleActive=(num)=>{
-        setActive(num)
-    }
-    
-    const [open, setOpen] = useState(true)
-    const handleOpen = () => {
-        setOpen(!open)
-        getOpen(open)
-    }
-    const [openProfile, setOpenProfile] = useState(false)
-    const handleOpenProfile = () => {
-        setOpenProfile(!openProfile)
-    }
-    const handleLogout = () => {
-        // ۱. توکن و اطلاعات کاربر را از حافظه مرورگر پاک کن
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+  const NavContent = () => (
+    <div className="flex flex-col h-full bg-white dark:bg-[#151D2A] text-gray-800 dark:text-gray-100 transition-colors">
+      {/* Brand Header */}
+      <div className="p-5 border-b-2 border-[#202A5A] dark:border-[#59BBAF]/30 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#202A5A] text-[#59BBAF] border-2 border-[#202A5A] flex items-center justify-center font-black text-lg rokad-shadow">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-black text-sm tracking-tight text-[#202A5A] dark:text-white">
+              پلتفرم رُکــاد
+            </h2>
+            <p className="text-[10px] font-bold text-[#E0195B]">
+              پنل مدیریت عالی سیستم (SuperAdmin)
+            </p>
+          </div>
+        </div>
+        {/* Mobile close button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg border-2 border-gray-200 dark:border-white/10 hover:border-[#202A5A] text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
-        // ۲. به جای navigate، صفحه را به صورت کامل رفرش و به آدرس لاگین هدایت کن
-        // این کار مشکل را به طور قطعی حل می‌کند
-        window.location.href = '/login';
-    }
-    return (
-        // <div className='relative'>
+      {/* Navigation Links */}
+      <div className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-bold transition-all border-2 ${
+                  isActive
+                    ? 'bg-[#202A5A] text-white border-[#202A5A] shadow-[2.5px_2.5px_0_#59BBAF]'
+                    : 'text-gray-700 dark:text-gray-300 border-transparent hover:border-[#202A5A]/30 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isActive
+                          ? 'text-[#59BBAF]'
+                          : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200'
+                      }`}
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        isActive
+                          ? 'bg-[#59BBAF] text-[#202A5A]'
+                          : 'bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
+      </div>
 
-        <div className={`absolute flex-column  right-0 w-[20%] h-screen transition duration-500 ease-in-out bg-[#F3F3F3] ${!open ? "translate-x-[70%]" : ""}`}>
-            <div className="w-full h-[21vh] flex justify-center relative items-center bg-linear-to-r from-[#19A297] to-[#59BBAF]">
-                <img src={frame50} className='absolute z-1 h-full w-full object-cover top-[0]' alt="" />
-
-                <div onClick={() => handleOpen()} className="w-9 z-2 h-9 rounded-[40px] flex items-center justify-center absolute top-20 left-[-18px] cursor-pointer bg-gray-200">
-                    {open ? <IoIosArrowForward /> : <IoIosArrowBack />}
-                </div>
-
-                <div className={`absolute z-20 top-[125px] 2xl:top-[17vh] items-center justify-center ${!open ? "hidden" : ""}  rounded-md bg-white transition-all duration-300 w-[80%] ${openProfile ? "h-45" : "h-25"} overflow-hidden flex-column`}>
-                    <div className="flex justify-center items-center w-full h-25 gap-2">
-                        {openProfile ?
-                            <SlArrowUp onClick={() => handleOpenProfile()} className='scale-70 cursor-pointer text-gray-400 mr-6' />
-                            :
-                            <SlArrowDown onClick={() => handleOpenProfile()} className='scale-70 cursor-pointer text-gray-400 mr-6' />
-                        }
-
-                        <div className='flex-column gap-2 text-end'>
-                            <h3 className='text-sm font-semibold'> {user?.fullName || 'کاربر مهمان'}</h3>
-                            <h5 className='text-sm text-gray-400'>مدیر سامانه</h5>
-                        </div>
-                        <div className='w-12 h-12'>
-                            <img src={aziz} alt="" />
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className={`w-[50%] mx-auto h-[7vh] rounded-md bg-linear-to-r text-white justify-center items-center flex from-[#19A297] to-[#59BBAF] cursor-pointer`}>خروج از حساب کاربری</button>
-                </div>
-
-                <div className={`absolute z-20 top-[125px] left-[10px] items-center justify-center flex ${open ? " hidden" : ""}  rounded-md bg-white transition-all duration-300 w-[20%] h-[10vh] overflow-hidden flex-column`}>
-                        <div className='w-12 h-12'>
-                            <img src={aziz} alt="" />
-                        </div>
-                </div>
-
-                <div className={`flex z-2 gap-2 justify-center items-center mb-10 ${!open ? "hidden" : ""}`}>
-                    <div className="flex-column justify-items-center items-center ">
-                        <h3 className='text-white text-xl font-semibold'>پلتـفرم کــا</h3>
-                        <p className='text-white text-[0.50rem] opacity-62'>سیستم جامع ارزیابی و پاداش</p>
-                    </div>
-                    <div className="rounded-xl flex justify-items-center items-center p-2 w-12 h-12 bg-white">
-                        <img src={KAlogo} className='scale-50' alt="" />
-                    </div>
-                </div>
-            </div>
-            <div className='grid grid-cols-1 relative  text-end mt-25 w-full justify-end h-80 2xl:h-[40vh]'>
-            <div className={`h-[7vh] w-[30%] absolute transition duration-300 ${open ? 'hidden' : ""} flex text-end items-center text-sm transition duration-500  ${active == 1 ? "text-[#19A297] bg-linear-to-l font-semibold   from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(1)} to={'/'} className='z-10 flex w-[100%] justify-end mr-10 items-center gap-2'>
-                        <BsFillGridFill />
-                    </Link>
-                    <div className={`h-[7vh] absolute  w-[70%] right-[-0px] bg-linear-to-l transition duration-500 z-2 from-[#59BBAF] opacity-20 to-[#F3F3F3] ${active == 1 ? "" : active == 2 ? "translate-y-20" : active == 3 ? "translate-y-40" :  active == 4 ? "translate-y-60" : active == 5 ? "translate-y-64" : ""
-                        }`}>
-                    </div>
-                    <div className={`w-3 h-[7vh] bg-[#19A297] transition duration-500 absolute z-2 right-[0px] opacity-100  ${active == 1 ? "translate-y-0" : active == 2 ? "translate-y-20" : active == 3 ? "translate-y-40" : active == 4 ? "translate-y-60" : active == 5 ? "translate-y-64" : ""
-                        }`}></div>
-
-                </div>
-                <div className={`h-[7vh] w-[30%] absolute transition duration-300 ${open ? 'hidden' : ""} top-20 flex items-center text-sm transition duration-500 ${active == 2 ? "text-[#19A297] font-semibold  bg-linear-to-l from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(2)} to={'/add-users'} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <RiUserAddLine />
-                    </Link>
-
-
-                </div>
-                <div className={`h-[7vh] w-[30%] absolute transition duration-300 ${open ? 'hidden' : ""} top-40 flex justify-center items-center text-sm   ${active == 3 ? "text-[#19A297] font-semibold bg-linear-to-l  from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(3)} to={"/add-activity"} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <MdOutlinePlaylistAdd />
-                    </Link >
-
-
-                </div>
-                <div className={`h-[7vh] w-[30%] absolute transition duration-300 ${open ? 'hidden' : ""} top-60 flex justify-center items-center text-sm   ${active == 4 ? "text-[#19A297] font-semibold bg-linear-to-l  from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(4)} to={"/rewards"} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <TbPencilPlus />
-
-                    </Link>
-
-
-                </div>
-               
-
-                <div className={`h-[7vh] w-full relative flex text-end items-center text-sm transition duration-500  ${active == 1 ? "text-[#19A297] bg-linear-to-l font-semibold   from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(1)} to={'/'} className='z-10 flex w-[100%] justify-end mr-10 items-center gap-2'>
-                        <h4>داشبــورد</h4>
-                        <BsFillGridFill />
-                    </Link>
-                    <div className={`h-[7vh] absolute w-[30%] right-[-0px] bg-linear-to-l transition duration-500 z-2 from-[#59BBAF] opacity-20 to-[#F3F3F3] ${active == 1 ? "" : active == 2 ? "translate-y-20 2xl:translate-y-[8vh]" : active == 3 ? "translate-y-40  2xl:translate-y-[16vh]" :  active == 4 ? "translate-y-60  2xl:translate-y-[24vh]" : active == 5 ? "translate-y-64  2xl:translate-y-[32vh]" : ""
-                        }`}>
-                    </div>
-                    <div className={`w-3 h-[7vh] bg-[#19A297] transition duration-500 absolute z-2 right-[0px] opacity-100  ${active == 1 ? "translate-y-0" : active == 2 ? "translate-y-20  2xl:translate-y-[8vh]" : active == 3 ? "translate-y-40  2xl:translate-y-[16vh]" : active == 4 ? "translate-y-60   2xl:translate-y-[24vh]" : active == 5 ? "translate-y-64  2xl:translate-y-[32vh]" : ""
-                        }`}></div>
-
-                </div>
-                <div className={`h-[7vh] w-full relative flex items-center text-sm transition duration-500 ${active == 2 ? "text-[#19A297] font-semibold  bg-linear-to-l from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(2)} to={'/add-users'} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <h4>ثبت نام دانش آموزان</h4>
-                        <RiUserAddLine />
-
-                    </Link>
-
-
-                </div>
-                <div className={`h-[7vh] w-full relative flex justify-center items-center text-sm   ${active == 3 ? "text-[#19A297] font-semibold bg-linear-to-l  from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(3)} to={"/add-activity"} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <h4>افزودن فعالیت جدید</h4>
-                        <MdOutlinePlaylistAdd />
-                    </Link >
-
-
-                </div>
-                <div className={`h-[7vh] w-full relative flex justify-center items-center text-sm   ${active == 4 ? "text-[#19A297] font-semibold bg-linear-to-l  from-[white] to-[#F3F3F3] " : "text-gray-400"}`}
-                ><Link onClick={()=>handleActive(4)} to={"/rewards"} className='z-10 flex w-full justify-end mr-10 items-center gap-2'>
-                        <h4>افزودن پاداش جدید</h4>
-                        <TbPencilPlus />
-
-                    </Link>
-
-
-                </div>
-               
-            </div>
-            <div className={`w-[85%] mt-12 mx-auto bg-gray-400 h-[1px] rounded-xl ${!open ? "hidden" : ""}`}></div>
-            <div className={`w-[80%] mt-12 mx-auto h-[7vh] rounded-md bg-linear-to-r text-white justify-center items-center flex from-[#19A297] to-[#59BBAF] 2xl:mt-30 cursor-pointer ${!open ? "hidden" : ""}`}>تنظیمات</div>
-
+      {/* Footer Info & Logout */}
+      <div className="p-4 border-t-2 border-[#202A5A] dark:border-[#59BBAF]/30 space-y-3">
+        <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[11px] leading-relaxed">
+          <div className="flex items-center gap-1.5 font-bold text-[#202A5A] dark:text-[#59BBAF] mb-1">
+            <ShieldAlert className="w-3.5 h-3.5 text-[#E0195B]" />
+            <span>راهبر سیستم مرکزی</span>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400">
+            تغییرات جداول پایه و اکسل‌ها به صورت بلادرنگ در تمام پرتال‌ها اعمال می‌گردد.
+          </p>
         </div>
 
-        // </div>
-    )
+        <button
+          onClick={handleLogout}
+          className="w-full py-2.5 px-3 rounded-xl border-2 border-rose-500/50 hover:border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>خروج از پنل مدیریت عالی</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar (Persistent) */}
+      <aside className="hidden lg:block w-72 shrink-0 border-l-2 border-[#202A5A] dark:border-[#59BBAF]/30 h-screen sticky top-0 z-20">
+        <NavContent />
+      </aside>
+
+      {/* Mobile Drawer (Slide-over with Backdrop) */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-fadeIn"
+            onClick={onClose}
+          />
+
+          {/* Drawer Content */}
+          <div className="relative w-72 max-w-[80vw] h-full shadow-2xl z-10 animate-slideLeft">
+            <NavContent />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

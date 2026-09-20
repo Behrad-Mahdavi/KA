@@ -1,84 +1,108 @@
 import React, { useContext, useState } from 'react';
-// 1. هوک useLocation را وارد کنید
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import Home from './Pages/Home';
 import { Toaster } from 'sonner';
-import Login from './Pages/Login';
 import { AuthContext } from './Utils/AuthContext';
-import Rewards from './Pages/Rewards';
-import Result from './Pages/Results';
-import Sidebar from './Components/Sidebar';
-import Activities from './Pages/Activities';
-import RequestRewardPage from './Pages/Rewards/RewardOptionData';
+import { ThemeProvider } from './Utils/ThemeContext';
 
-// کامپوننت اصلی برنامه را در یک کامپوننت داخلی قرار می‌دهیم تا به useLocation دسترسی داشته باشد
+// Components
+import Sidebar from './Components/Sidebar';
+import Header from './Components/Header';
+
+// Pages
+import Home from './Pages/Home';
+import Login from './Pages/Login';
+import Activities from './Pages/Activities';
+import Rewards from './Pages/Rewards';
+import RequestRewardPage from './Pages/Rewards/RewardOptionData';
+import Result from './Pages/Results';
+
 const AppContent = () => {
   const { token, user } = useContext(AuthContext);
-  const [open, setOpen] = useState(true);
-  const [refresh, setRefresh] = useState(false);
-
-  const handleRefresh=(e)=>{
-    setRefresh(true)
-    setTimeout(() => {
-    setRefresh(false)
-      
-    }, 10);
-  }
-
-  
-  // 2. مسیر فعلی را بگیرید
   const location = useLocation();
-  
-  const getOpen = (e) => {
-    setOpen(e);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isStudent = token && user?.role === 'student';
+  const isLoginPage = location.pathname === '/login';
+  const showAppShell = isStudent && !isLoginPage;
+
+  // Title based on path
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/':
+        return 'میز کار و داشبورد دانش‌آموز';
+      case '/activities':
+        return 'مدیریت و ثبت فعالیت‌ها';
+      case '/rewards':
+      case '/request-reward':
+        return 'فروشگاه و دریافت پاداش‌ها';
+      case '/results':
+        return 'جدول جامع رتبه‌بندی و امتیازات';
+      default:
+        return 'هنرستان استارتاپی رُکاد';
+    }
   };
 
-  // 3. شرط نمایش سایدبار را اصلاح کنید
-  // سایدبار فقط زمانی نمایش داده می‌شود که:
-  // - کاربر لاگین کرده باشد (token وجود داشته باشد)
-  // - نقش کاربر "student" باشد
-  // - مسیر فعلی "/login" نباشد
-  const showSidebar = token && user?.role === 'student' && location.pathname !== '/login';
-
   return (
-    <div className="overflow-hidden h-screen w-full relative flex">
-      <Toaster position='top-right' />
-      <Routes>
-        <Route 
-          path='/login' 
-          element={token && user?.role === "student" ? <Navigate to="/" /> : <Login />} 
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0B0F17] text-[#292827] dark:text-[#F1F5F9] transition-colors flex">
+      <Toaster position="top-right" richColors />
+
+      {/* Sidebar Navigation */}
+      {showAppShell && (
+        <Sidebar
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
         />
-        <Route 
-          path='/' 
-          element={!token || user?.role !== "student" ? <Navigate to="/login" /> : <Home Open={open} />} 
-        />
-  
-        <Route 
-          path='/activities' 
-          element={!token || user?.role !== "student" ? <Navigate to="/login" /> : <Activities Open={open} handleRefresh={handleRefresh} />} 
-        />
-        <Route 
-          path='/rewards' 
-          element={!token || user?.role !== "student" ? <Navigate to="/login" /> : <Rewards Open={open} handleRefresh={handleRefresh}/>} 
-        />
-         <Route path="/request-reward" element={!token || user?.role !== "student" ? <Navigate to="/login" /> : <RequestRewardPage Open={open} />} /> 
-        <Route 
-          path='/results' 
-          element={!token || user?.role !== "student" ? <Navigate to="/login" /> : <Result Open={open} />} 
-        />
-      </Routes>
-      {showSidebar && <Sidebar activeNum={1} getOpen={getOpen} refresh={refresh}/>}
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-x-hidden">
+        {showAppShell && (
+          <Header
+            title={getPageTitle()}
+            onMenuClick={() => setMobileMenuOpen(true)}
+          />
+        )}
+
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <Routes>
+            <Route
+              path="/login"
+              element={isStudent ? <Navigate to="/" replace /> : <Login />}
+            />
+            <Route
+              path="/"
+              element={!isStudent ? <Navigate to="/login" replace /> : <Home />}
+            />
+            <Route
+              path="/activities"
+              element={!isStudent ? <Navigate to="/login" replace /> : <Activities />}
+            />
+            <Route
+              path="/rewards"
+              element={!isStudent ? <Navigate to="/login" replace /> : <Rewards />}
+            />
+            <Route
+              path="/request-reward"
+              element={!isStudent ? <Navigate to="/login" replace /> : <RequestRewardPage />}
+            />
+            <Route
+              path="/results"
+              element={!isStudent ? <Navigate to="/login" replace /> : <Result />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </div>
-  );
-}
-
-
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </BrowserRouter>
+  );
+}

@@ -1,389 +1,331 @@
-import React, { useEffect, useRef, useState } from 'react';
-import frame21 from '../../assets/images/Frame21.png'; // مسیر صحیح تصاویر
-import frame22 from '../../assets/images/Frame22.png'; // مسیر صحیح تصاویر
-import frame200 from '../../assets/images/Frame200.png'
-import { BiSolidSchool } from "react-icons/bi";
-// آیکون FaVenus برای تطابق با نماد ♀ در تصویر جایگزین FaMedal شد
-import { FaVenus, FaPlus, FaMedal } from "react-icons/fa";
-import { IoNotificationsOutline } from "react-icons/io5";
-import { Link, useNavigate } from 'react-router-dom'; // اضافه کردن useNavigate
-import NotificationPanel from '../../Components/NotificationPanel'; // مسیر صحیح کامپوننت
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import fetchData from '../../Utils/fetchData';
+import { toPersianDigits } from '../../Utils/utils';
+import StatCard from '../../Components/UI/StatCard';
+import RokadCard from '../../Components/UI/RokadCard';
+import RokadButton from '../../Components/UI/RokadButton';
+import RokadBadge from '../../Components/UI/RokadBadge';
+import {
+  Medal,
+  Coins,
+  Trophy,
+  Users,
+  Plus,
+  Gift,
+  ArrowUpRight,
+  TrendingUp,
+  AlertCircle,
+  GraduationCap,
+  Sparkles,
+  ChevronLeft
+} from 'lucide-react';
 
-export default function StudentDashboard({ Open }) {
-
-  const MOCKET_ACTIVITY_DATA = [
-    {
-      "parentName": "فعالیت‌های آموزشی",
-      "totalScore": 0,
-      "progressPercentage": 0,
-      "color": "text-[#652D90]",
-      "rawHexColor": "#652D90"
-    },
-    {
-      "parentName": "فعالیت‌های داوطلبانه و توسعه فردی",
-      "totalScore": 0,
-      "progressPercentage": 0,
-      "color": "text-[#E0195B]",
-      "rawHexColor": "#E0195B"
-    },
-    {
-      "parentName": "فعالیت‌های شغلی",
-      "totalScore": 0,
-      "progressPercentage": 0,
-      "color": "text-[#F8A41D]",
-      "rawHexColor": "#F8A41D"
-    },
-    {
-      "parentName": "موارد کسر امتیاز",
-      "totalScore": 0,
-      "progressPercentage": 0,
-      "color": "text-[#787674]",
-      "rawHexColor": "#787674"
-    }
-  ]
+export default function StudentHome() {
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "null");
-
   const navigate = useNavigate();
 
-  const date = new Date();
-  const month = new Intl.DateTimeFormat('fa-IR', { month: 'short' }).format(date);
-  const day = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(date);
-  const year = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(date);
-  const week = new Intl.DateTimeFormat('fa-IR', { weekday: 'short' }).format(date);
-
   const [dashboardData, setDashboardData] = useState(null);
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
-  const [errorDashboard, setErrorDashboard] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0); // استیت برای نگهداری تعداد اعلان‌ها
-
-
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const notificationRef = useRef(null);
-
-  const refreshUnreadCount = async () => {
-    if (!token) return;
-    try {
-      const response = await fetchData('notifications?filter=unread', {
-        headers: { authorization: `Bearer ${token}` }
-      });
-      if (response.success) {
-        setUnreadCount(response.totalCount || 0);
-      }
-    } catch (error) {
-      console.error("Failed to refresh unread count:", error);
-    }
-  };
-
-  const toggleNotificationPanel = () => setIsNotificationOpen(prev => !prev);
-  const closeNotificationPanel = () => {
-    setIsNotificationOpen(false);
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-  };
-  useEffect(() => {
-    refreshUnreadCount(); // این خط را برای اطمینان از به‌روز بودن عدد اضافه کنید
-
-    function handleClickOutside(event) {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        const notificationIcon = document.getElementById('notification-icon-button');
-        if (notificationIcon && notificationIcon.contains(event.target)) return;
-        setIsNotificationOpen(false);
-      }
-    }
-    if (isNotificationOpen) document.addEventListener("mousedown", handleClickOutside);
-    else document.removeEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isNotificationOpen]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!localStorage.getItem("token")) {
-        setErrorDashboard("توکن احراز هویت یافت نشد. لطفاً دوباره وارد شوید.");
-        setLoadingDashboard(false);
-        return;
-      }
-
-      setLoadingDashboard(true);
-      setErrorDashboard(null);
+    const fetchDashboard = async () => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
       try {
         const response = await fetchData('student-dashboard', {
           headers: { authorization: `Bearer ${token}` }
         });
-
-        if (response.success && response.data) {
+        if (response?.success && response?.data) {
           setDashboardData(response.data);
         } else {
-          console.error("Dashboard fetch error response:", response);
-          setErrorDashboard(response.message || "خطا در دریافت اطلاعات داشبورد.");
-          setDashboardData(null);
-          if (response.status === 401 || response.status === 403) {
-            // navigate('/login');
-          }
+          setError(response?.message || 'خطا در دریافت اطلاعات داشبورد.');
         }
       } catch (err) {
-        console.error("Dashboard fetch network/exception error:", err);
-        setErrorDashboard("خطای شبکه یا سرور در ارتباط با داشبورد: " + (err.message || "خطای ناشناخته"));
-        setDashboardData(null);
+        setError(err.message || 'خطای اتصال به سرور');
       } finally {
-        setLoadingDashboard(false);
+        setLoading(false);
       }
     };
-    fetchDashboardData();
-  }, [navigate]);
+    fetchDashboard();
+  }, []);
 
-  const formatNumberToPersian = (num) => {
-    if (num === undefined || num === null || isNaN(Number(num))) return "۰";
-    return Number(num).toLocaleString('fa-IR');
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-32 bg-gray-200 dark:bg-gray-800 rounded-3xl animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-28 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <RokadCard className="text-center py-12">
+        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-[#202A5A] dark:text-white mb-2">{error}</h3>
+        <RokadButton onClick={() => window.location.reload()} variant="primary" size="sm">
+          تلاش مجدد
+        </RokadButton>
+      </RokadCard>
+    );
+  }
+
+  const {
+    totalUserScore = 0,
+    totalTokens = 0,
+    rankInSchool,
+    rankInGrade,
+    rankInClass,
+    activitySummary = [],
+    higherNeighbors = [],
+    lowerNeighbors = [],
+  } = dashboardData || {};
 
   return (
-    <>
-      <div className={`${!Open ? "w-[calc(100%-6%)]" : "w-[calc(100%-22%)]"} p-6 md:p-8 transition-all duration-500 flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100`}>
-        {/* هدر بالا */}
-        <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-[5vh] mb-6">
-          <div className="flex justify-center items-center gap-3 sm:gap-5 mb-2 sm:mb-0">
-            <h3 className="text-[#19A297] text-xs sm:text-sm">
-              {dashboardData?.headerInfo?.schoolName || "هنرستان استارتاپی رکاد"}
-            </h3>
-            <BiSolidSchool className="text-[#19A297] ml-[-8px] sm:ml-[-10px] text-lg sm:text-xl" />
-            <div className="relative" ref={notificationRef}>
-              <button
-                id="notification-icon-button"
-                onClick={toggleNotificationPanel}
-                className="w-7 h-7 sm:w-8 sm:h-8 flex justify-center items-center border border-gray-300 rounded-full cursor-pointer group relative"
-                aria-label="اعلان‌ها"
-              >
-                <IoNotificationsOutline className="text-gray-400 text-sm sm:text-base" />
-                {unreadCount > 0 && ( // <<<< اینجا از unreadCount استفاده می‌کنیم
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                )}
-              </button>
-              <NotificationPanel
-                isOpen={isNotificationOpen}
-                onClose={closeNotificationPanel}
-                token={token}
-              />
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Welcome & Greeting Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#202A5A] via-[#1D2651] to-[#161D3D] text-white p-6 sm:p-8 border-2 border-[#182044] shadow-[4px_4px_0_#59BBAF]">
+        {/* Background Accents */}
+        <div className="absolute top-0 left-0 -mt-10 -ml-10 w-40 h-40 bg-[#59BBAF]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 -mb-10 -mr-10 w-40 h-40 bg-[#E0195B]/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-[#59BBAF]">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>پایه {user?.grade || 'نامشخص'} • کلاس {toPersianDigits(user?.class || '')}</span>
             </div>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black">
+              سلام، {user?.fullName || 'دانش‌آموز عزیز'} 👋
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-300 max-w-xl">
+              رشته تحصیلی: {user?.fieldOfStudy || 'فنی و مهارتی'} • به پنل امتیازدهی و دستاوردهای هنرستان خوش آمدید.
+            </p>
           </div>
-          <div className="flex justify-center items-center gap-3 sm:gap-5">
-            <p className="text-gray-400 text-xs sm:text-sm">امروز {week}، {day} {month} ماه {year}</p>
-            <h1 className="text-[#59BBAF] font-semibold text-[22px] ">
-              داشبورد
-            </h1>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to="/activities">
+              <button className="rokad-btn-primary px-4 py-2.5 text-xs sm:text-sm">
+                <Plus className="w-4 h-4" />
+                <span>ثبت فعالیت جدید</span>
+              </button>
+            </Link>
+            <Link to="/rewards">
+              <button className="rokad-btn-outline px-4 py-2.5 text-xs sm:text-sm bg-white/10 text-white border-white/20 hover:bg-white/20">
+                <Gift className="w-4 h-4 text-[#59BBAF]" />
+                <span>دریافت پاداش</span>
+              </button>
+            </Link>
           </div>
         </div>
-
-        {loadingDashboard && <p className="text-center text-lg text-gray-600 py-10">در حال بارگذاری اطلاعات داشبورد...</p>}
-        {errorDashboard && (
-          <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg text-center" role="alert">
-            {errorDashboard}
-            {(errorDashboard.includes("توکن") || errorDashboard.includes("احراز هویت")) && (
-              <button onClick={() => navigate('/login')} className="ml-4 mt-2 sm:mt-0 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs">
-                ورود مجدد
-              </button>
-            )}
-          </div>
-        )}
-
-        {dashboardData && !loadingDashboard && !errorDashboard && (
-          <>
-            {/* بخش بالایی: جمع کل امتیازات و فعالیت‌ها */}
-            <div className="flex flex-col lg:flex-row gap-3 mb-3">
-              {/* کارت جمع کل امتیازات */}
-              <div className="relative lg:w-1/2 bg-[#E8ECFF] rounded-lg p-4 flex flex-col justify-around items-center" style={{ height: '250px' }}>
-                <img src={frame200} className="absolute z-0 h-full w-full object-cover top-0 left-0" alt="" />
-
-                <div className=" z-10 flex justify-center items-center w-16 h-16 rounded-full shadow-md">
-                  {/* Icon changed to FaVenus to match the image */}
-                  <FaMedal className="text-4xl text-white mt-10" />
-                </div>
-                <p className="text-[#202A5A] font-bold mt-10 text-[42px] z-10">
-                  {formatNumberToPersian(dashboardData.totalUserScore)}
-                </p>
-                <h2 className="text-[#202A5A] text-[24px] font-bold z-10">جمع کل امتیازات</h2>
-              </div>
-
-              {/* بخش فعالیت‌ها */}
-              <div className="lg:w-1/2 bg-white p-6 rounded-lg shadow-sm flex flex-col justify-center" style={{ height: '250px' }}>
-                {(dashboardData.activitySummary && dashboardData.activitySummary.length > 0) ? (
-                  dashboardData.activitySummary.map((activity) => {
-                    // ✅ FIX: یک متغیر برای تشخیص موارد کسر امتیاز
-                    const isDeduction = activity.parentName === 'موارد کسر امتیاز';
-
-                    return (
-                      <div key={activity.id || activity.parentName} className="flex items-center gap-3 mb-4 last:mb-0">
-                        <div
-                          className="w-12 h-10 flex-shrink-0 text-white text-sm font-semibold rounded-md flex items-center justify-center"
-                          style={{ backgroundColor: activity.rawHexColor }}
-                        >
-                          {activity.totalScore < 0 ? `-${formatNumberToPersian(Math.abs(activity.totalScore))}` : formatNumberToPersian(activity.totalScore)}
-                        </div>
-                        <div className="flex-grow text-right">
-                          <div className="flex justify-between items-center mb-1.5">
-                            <span className={`text-sm font-medium text-gray-700`}>{activity.parentName}</span>
-                            <Link to={activity.detailsLink || "/my-activities"} className={`text-xs text-gray-500 hover:underline`}>مشاهده</Link>
-                          </div>
-                          {/* ✅ FIX: تغییر در div والد نوار پیشرفت */}
-                          <div
-                            className="w-full bg-gray-200 rounded-full h-2 overflow-hidden"
-                            // اگر کسر امتیاز بود، جهت را برعکس می‌کنیم
-                            dir={isDeduction ? 'rtl' : 'ltr'}
-                          >
-                            <div
-                              className="h-full rounded-full transition-all duration-500 ease-out"
-                              style={{
-                                width: `${isDeduction ? (activity.totalScore * -0.25) : activity.progressPercentage}%`,
-                                backgroundColor: activity.rawHexColor
-                              }}
-                              title={`${activity.progressPercentage}%`}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  MOCKET_ACTIVITY_DATA.map((activity) => {
-                    // ✅ FIX: یک متغیر برای تشخیص موارد کسر امتیاز
-                    const isDeduction = activity.parentName === 'موارد کسر امتیاز';
-
-                    return (
-                      <div key={activity.id || activity.parentName} className="flex items-center gap-3 mb-4 last:mb-0">
-                        <div
-                          className="w-12 h-10 flex-shrink-0 text-white text-sm font-semibold rounded-md flex items-center justify-center"
-                          style={{ backgroundColor: activity.rawHexColor }}
-                        >
-                          {activity.totalScore < 0 ? `-${formatNumberToPersian(Math.abs(activity.totalScore))}` : formatNumberToPersian(activity.totalScore)}
-                        </div>
-                        <div className="flex-grow text-right">
-                          <div className="flex justify-between items-center mb-1.5">
-                            <span className={`text-sm font-medium text-gray-700`}>{activity.parentName}</span>
-                            <Link to={activity.detailsLink || "/my-activities"} className={`text-xs text-gray-500 hover:underline`}>مشاهده</Link>
-                          </div>
-                          {/* ✅ FIX: تغییر در div والد نوار پیشرفت */}
-                          <div
-                            className="w-full bg-gray-200 rounded-full h-2 overflow-hidden"
-                            // اگر کسر امتیاز بود، جهت را برعکس می‌کنیم
-                            dir={isDeduction ? 'rtl' : 'ltr'}
-                          >
-                            <div
-                              className="h-full rounded-full transition-all duration-500 ease-out"
-                              style={{
-                                width: `${isDeduction ? (activity.totalScore * -0.25) : activity.progressPercentage}%`,
-                                backgroundColor: activity.rawHexColor
-                              }}
-                              title={`${activity.progressPercentage}%`}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }))}
-              </div>
-
-            </div>
-
-            {/* بخش میانی: کارت‌های توکن */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <div className="bg-[#F8F7FF] rounded-lg h-[110px] p-6 flex items-center relative">
-                <img src={frame22} className="absolute z-0 h-full w-full object-cover top-0 left-0" alt="" />
-                <div className='lg:w-2/3 px-10 z-100'>
-                  <h2 className="text-[#202A5A] font-semibold text-[22px] z-10">توکن‌های استفاده‌شده</h2>
-                </div>
-                <div className='lg:w-1/3 text-center z-100'>
-                  <p className="text-[#202A5A] font-bold text-4xl z-10">
-                    {formatNumberToPersian(dashboardData.paidRewardsTokenValue)}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-[#F8F7FF] rounded-lg h-[110px] p-6 flex items-center  relative">
-                <img src={frame22} className="absolute z-0 h-full w-full object-cover top-0 left-0" alt="" />
-                <div className='lg:w-2/3 px-10 z-100'>
-                  <h2 className="text-[#202A5A] font-semibold text-[22px] z-10">توکن‌های قابل‌استفاده</h2>
-                </div>
-                <div className='lg:w-1/3 text-center z-100'>
-                  <p className="text-[#202A5A] font-bold text-4xl z-10">
-                    {formatNumberToPersian(dashboardData.availableTokens)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* بخش پایینی: جداول */}
-            <div className="flex flex-col lg:flex-row gap-3 mb-3">
-              {/* جدول برترین های پایه */}
-              <div className="lg:w-1/2 gap-3 flex flex-col">
-                {/* Header changed to match the image */}
-                <Link to="/rewards" className="w-full h-[60px] bg-[#F5E8FF] hover:bg-purple-200 transition-colors text-purple-700 py-3 rounded-lg font-bold text-base flex items-center justify-center gap-2 no-underline">
-                  ثبت پاداش جدید <FaPlus />
-                </Link>
-                <div className="flex-grow overflow-hidden rounded-b-lg bg-white border border-gray-200 border-t-0">
-                  <div className="bg-[#19A297] text-white h-12 flex items-center px-4">
-                    <Link to="/results" className="text-gray-200 hover:text-white text-[10px]">مشاهدۀ همه</Link>
-                    <h3 className="flex-grow text-right font-bold text-base">برترین‌های پایه</h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    {(dashboardData.topStudentsInMyGrade && dashboardData.topStudentsInMyGrade.length > 0) ? (
-                      <table className="w-full min-w-max">
-                        <tbody>
-                          {dashboardData.topStudentsInMyGrade.slice(0, 5).map((student, i) => {
-                            const isMe = user && (student.userId == user.id || student.id == user.id);
-                            return (
-                            <tr key={student.userId || student.id || i} className={`h-12 border-b ${isMe ? "bg-[#D4F3F1]" : "bg-white"} border-gray-200/80 last:border-b-0 text-right text-sm`}>
-                              <td className={`px-4 py-2 text-left ${isMe ? "text-[#046A60] font-bold" : "text-[#202A5A]"} w-24 `}>{formatNumberToPersian(student.score)}</td>
-                              <td className={`px-4 py-2 ${isMe ? " text-[#046A60] " : "text-[#202A5A]"} ${isMe ? " font-bold " : "font-medium"}`}>
-                                {student.fullName} <span className={`font-medium ${isMe ? "text-[#046A60]/80" : "text-gray-400"}`}>({student.classNum || student.class || 'N/A'})</span>
-                              </td>
-                              <td className={`px-4 py-2 text-center ${isMe ? "text-[#046A60]" : "text-[#202A5A]"} font-medium w-12`}>{student.rank}</td>
-                            </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-center text-gray-500 p-4">اطلاعات رتبه‌بندی پایه در دسترس نیست.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* جدول رتبه شما */}
-              <div className="lg:w-1/2 gap-3 flex flex-col">
-                <Link to="/activities" className="w-full h-[60px] bg-[#FFE8F0] hover:bg-pink-200 transition-colors text-pink-600 py-3 rounded-lg font-bold text-base flex items-center justify-center gap-2 no-underline">
-                  ثبت فعالیت جدید   <FaPlus />
-                </Link>
-                <div className="flex-grow overflow-hidden rounded-b-lg bg-white border border-gray-200 border-t-0">
-                  <div className="bg-[#202A5A] text-white h-12 flex items-center px-4">
-                    <Link to="/results" className="text-gray-300 hover:text-white text-[10px]">مشاهدۀ همه</Link>
-                    <h3 className="flex-grow text-right font-bold text-base">رتبۀ شما در جدول امتیازات</h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    {(dashboardData.userRankingInfo?.rankingTableData && dashboardData.userRankingInfo.rankingTableData.length > 0) ? (
-                      <table className="w-full min-w-max">
-                        <tbody>
-                          {dashboardData.userRankingInfo.rankingTableData.slice(0, 5).map((user, i) => (
-                            <tr key={user.userId || i} className={`h-12 ${user.highlight ? "bg-[#D4F3F1]" : "bg-white"} border-b border-gray-200/80 last:border-b-0 text-right text-sm`}>
-                              <td className={`px-4 py-2 text-left w-24 ${user.highlight ? "text-[#046A60] font-bold" : "text-[#202A5A]"}`}>{formatNumberToPersian(user.score)}</td>
-                              <td className={`px-4 py-2 ${user.highlight ? " text-[#046A60] " : "text-[#202A5A]"} ${user.highlight ? " font-bold " : "font-medium"}`}>
-                                {user.name} <span className={` font-medium ${user.highlight ? "text-[#046A60]/80" : "text-gray-400"}`}>({user.code || 'N/A'})</span>
-                              </td>
-                              <td className={`px-4 py-2 text-center font-medium w-12 ${user.highlight ? "text-[#046A60]" : "text-[#202A5A]"}`}>{user.rank}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-center text-gray-500 p-4">اطلاعات رتبه‌بندی شما در دسترس نیست.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-        <div className="pb-10"></div>
       </div>
-    </>
+
+      {/* 2. Key Metrics & Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <StatCard
+          title="جمع کل امتیازات"
+          value={totalUserScore}
+          subtitle="مجموع تلاش‌های مهارتی"
+          icon={Medal}
+          theme="male"
+          trend={{ value: "فعال", isPositive: true }}
+        />
+        <StatCard
+          title="موجودی توکن‌ها"
+          value={totalTokens}
+          subtitle="آماده برای خرج در ویترین"
+          icon={Coins}
+          theme="college"
+          trend={{ value: "تبدیل ۹۵٪", isPositive: true }}
+        />
+        <StatCard
+          title="رتبه در هنرستان"
+          value={rankInSchool ? `رتبه ${rankInSchool}` : 'محاسبه...'}
+          subtitle="میان تمام دانش‌آموزان"
+          icon={Trophy}
+          theme="ecosystem"
+        />
+        <StatCard
+          title="رتبه در کلاس"
+          value={rankInClass ? `رتبه ${rankInClass}` : 'محاسبه...'}
+          subtitle={`پایه ${user?.grade || ''} • کلاس ${toPersianDigits(user?.class || '')}`}
+          icon={Users}
+          theme="club"
+        />
+      </div>
+
+      {/* 3. Activity Categories Progress & Gamification */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Progress Breakdown (2 cols on lg) */}
+        <div className="lg:col-span-2">
+          <RokadCard className="h-full">
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-[#202A5A] dark:text-white">
+                  وضعیت دسته‌بندی فعالیت‌ها
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  روند پیشرفت شما در ۴ حوزه امتیازدهی
+                </p>
+              </div>
+              <Link
+                to="/activities"
+                className="text-xs font-bold text-[#59BBAF] hover:underline flex items-center gap-1"
+              >
+                <span>مشاهده سوابق</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            <div className="space-y-5">
+              {activitySummary.length > 0 ? (
+                activitySummary.map((item) => {
+                  const isDeduction = item.parentName === 'موارد کسر امتیاز';
+                  const percentage = Math.min(100, Math.max(0, item.progressPercentage || 0));
+
+                  return (
+                    <div
+                      key={item.parentName}
+                      className="p-4 rounded-2xl bg-gray-50/80 dark:bg-[#1C2536]/60 border border-gray-100 dark:border-gray-800/80 transition-all hover:border-[#59BBAF]/30"
+                    >
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.rawHexColor || '#59BBAF' }}
+                          />
+                          <span className="text-xs sm:text-sm font-bold text-[#202A5A] dark:text-white">
+                            {item.parentName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-xs sm:text-sm font-black"
+                            style={{ color: item.rawHexColor || '#202A5A' }}
+                          >
+                            {isDeduction
+                              ? `-${toPersianDigits(Math.abs(item.totalScore || 0))}`
+                              : `+${toPersianDigits(item.totalScore || 0)}`}{' '}
+                            امتیاز
+                          </span>
+                          {!isDeduction && (
+                            <span className="text-[11px] font-bold text-gray-400">
+                              ({toPersianDigits(percentage)}٪)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{
+                            width: isDeduction
+                              ? `${Math.min(100, Math.abs(item.totalScore || 0) * 2)}%`
+                              : `${percentage}%`,
+                            backgroundColor: item.rawHexColor || '#59BBAF',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-xs text-gray-400">
+                  اطلاعاتی در دسترس نیست.
+                </div>
+              )}
+            </div>
+          </RokadCard>
+        </div>
+
+        {/* 4. Competition & Neighbors (Rank Surrounding Students) */}
+        <div className="lg:col-span-1">
+          <RokadCard className="h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[#59BBAF]" />
+                <h3 className="text-base font-black text-[#202A5A] dark:text-white">
+                  جدول رقابت نزدیک
+                </h3>
+              </div>
+              <Link to="/results" className="text-xs font-bold text-[#59BBAF] hover:underline">
+                کل جدول
+              </Link>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              همکلاسی‌های نزدیک شما در جدول رتبه‌بندی:
+            </p>
+
+            <div className="space-y-2 flex-1">
+              {/* Higher Neighbors */}
+              {higherNeighbors.map((st, idx) => (
+                <div
+                  key={st.id || idx}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#1C2536] border border-gray-100 dark:border-gray-800 text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold flex items-center justify-center text-[10px]">
+                      {toPersianDigits((rankInSchool || 2) - higherNeighbors.length + idx)}
+                    </span>
+                    <span className="font-bold text-gray-700 dark:text-gray-200">
+                      {st.fullName}
+                    </span>
+                  </div>
+                  <span className="font-bold text-[#202A5A] dark:text-gray-300">
+                    {toPersianDigits(st.score)} امتیاز
+                  </span>
+                </div>
+              ))}
+
+              {/* Current Student (Highlighted) */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#EEF8F7] dark:bg-[#1F413D]/60 border-2 border-[#59BBAF] shadow-[2px_2px_0_#59BBAF] text-xs font-bold my-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-[#59BBAF] text-white flex items-center justify-center text-[11px] font-black">
+                    {toPersianDigits(rankInSchool || 1)}
+                  </span>
+                  <span className="text-[#1F413D] dark:text-[#EEF8F7]">
+                    {user?.fullName} (شما)
+                  </span>
+                </div>
+                <span className="text-[#59BBAF] font-black text-sm">
+                  {toPersianDigits(totalUserScore)} امتیاز
+                </span>
+              </div>
+
+              {/* Lower Neighbors */}
+              {lowerNeighbors.map((st, idx) => (
+                <div
+                  key={st.id || idx}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#1C2536] border border-gray-100 dark:border-gray-800 text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold flex items-center justify-center text-[10px]">
+                      {toPersianDigits((rankInSchool || 1) + idx + 1)}
+                    </span>
+                    <span className="font-bold text-gray-700 dark:text-gray-200">
+                      {st.fullName}
+                    </span>
+                  </div>
+                  <span className="font-bold text-[#202A5A] dark:text-gray-300">
+                    {toPersianDigits(st.score)} امتیاز
+                  </span>
+                </div>
+              ))}
+            </div>
+          </RokadCard>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,63 +1,122 @@
 import React, { useContext, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import Home from './Pages/Home';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import Login from './Pages/Login';
 import { AuthContext } from './Utils/AuthContext';
-import Result from './Pages/Results';
-import Sidebar from './Components/Sidebar';
+import { ThemeProvider } from './Utils/ThemeContext';
 
-import ExcelUploader from './Pages/ExelUploader';
+// Components
+import Sidebar from './Components/Sidebar';
+import Header from './Components/Header';
+
+// Pages
+import Home from './Pages/Home';
+import Login from './Pages/Login';
 import ExcelUpload from './Pages/ExelUploader';
 import ActivityExcelUpload from './Pages/Activity';
 import RewardExcelUpload from './Pages/Rewards';
+import Requests from './Pages/Requests';
+import Result from './Pages/Results';
 
-const App = () => {
+const AppContent = () => {
   const { token, user } = useContext(AuthContext);
-  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const getOpen = (e) => {
-    setOpen(e);
+  const isSuperAdmin = token && user?.role !== 'student';
+  const isLoginPage = location.pathname === '/login';
+  const showAppShell = isSuperAdmin && !isLoginPage;
+
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/':
+        return 'میز پایش و مدیریت عالی هنرستان';
+      case '/add-users':
+        return 'ثبت‌نام گروهی کاربران (اکسل)';
+      case '/add-activity':
+        return 'بارگذاری گروهی تعاریف فعالیت‌ها';
+      case '/rewards':
+        return 'بارگذاری کاتالوگ پاداش‌ها';
+      case '/requests':
+        return 'کارتابل درخواست‌های فعالیت دانش‌آموزان';
+      case '/results':
+        return 'جداول نتایج، امتیازات و گزارشات';
+      default:
+        return 'پنل مدیریت عالی رُکاد';
+    }
   };
 
   return (
-    <BrowserRouter>
-      <div className="overflow-hidden h-screen w-full relative flex">
-        <Toaster position='top-right' />
-        <Routes>
-          <Route
-            path='/login'
-            element={token && user?.role !== "student" ? <Navigate to="/" /> : <Login />}
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0B0F17] text-[#292827] dark:text-[#F1F5F9] transition-colors flex">
+      <Toaster position="top-right" richColors />
+
+      {/* Sidebar Navigation */}
+      {showAppShell && (
+        <Sidebar
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {showAppShell && (
+          <Header
+            onMenuClick={() => setMobileMenuOpen(true)}
+            title={getPageTitle()}
           />
-          <Route
-            path='/'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Home Open={open} />}
-          />
-          <Route
-            path='/add-users'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <ExcelUpload Open={open} />}
-          />
-          <Route
-            path='/add-activity'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <ActivityExcelUpload Open={open} />}
-          />
-          <Route
-            path='/rewards'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <RewardExcelUpload Open={open} />}
-          />
-          <Route
-            path='/results'
-            element={!token || user?.role === "student" ? <Navigate to="/login" /> : <Result Open={open} />}
-          />
-          <Route
-            path='/exel'
-            element={<ExcelUpload Open={open} />}
-          />
-        </Routes>
-        {token && <Sidebar activeNum={1} getOpen={getOpen} />}
+        )}
+
+        <main className={`flex-1 ${showAppShell ? 'p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full' : ''}`}>
+          <Routes>
+            <Route
+              path="/login"
+              element={token && user?.role !== 'student' ? <Navigate to="/" replace /> : <Login />}
+            />
+            <Route
+              path="/"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <Home />}
+            />
+            <Route
+              path="/add-users"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <ExcelUpload />}
+            />
+            <Route
+              path="/add-activity"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <ActivityExcelUpload />}
+            />
+            <Route
+              path="/rewards"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <RewardExcelUpload />}
+            />
+            <Route
+              path="/requests"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <Requests />}
+            />
+            <Route
+              path="/results"
+              element={!token || user?.role === 'student' ? <Navigate to="/login" replace /> : <Result />}
+            />
+            <Route
+              path="/exel"
+              element={<Navigate to="/add-users" replace />}
+            />
+            <Route
+              path="*"
+              element={<Navigate to="/" replace />}
+            />
+          </Routes>
+        </main>
       </div>
-    </BrowserRouter>
+    </div>
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+}

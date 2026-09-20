@@ -1,170 +1,178 @@
-// components/NotificationPanel.jsx (نسخه نهایی و هوشمند)
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IoClose, IoCheckmarkDoneCircleOutline, IoRefresh } from 'react-icons/io5';
 import fetchData from '../Utils/fetchData';
-import { formatDistanceToNow } from 'date-fns-jalali';
 import { useNavigate } from 'react-router-dom';
-
-// آیکون‌های لازم برای هر دو پنل را وارد می‌کنیم
 import {
-    BsChatDotsFill,     // عمومی
-    BsCheckCircleFill,  // تایید
-    BsXCircleFill,      // رد
-    BsFileEarmarkPlusFill, // درخواست جدید (فعالیت)
-    BsGiftFill          // درخواست جدید (جایزه) و دستاورد
+  BsChatDotsFill,
+  BsCheckCircleFill,
+  BsXCircleFill,
+  BsFileEarmarkPlusFill,
+  BsGiftFill
 } from 'react-icons/bs';
+import { toPersianDigits, formatToJalali } from '../Utils/utils';
 
-// مجموعه آیکون‌های دانش‌آموز
 const studentIconMap = {
-    'activity_status': BsChatDotsFill,
-    'reward_status': BsCheckCircleFill,
-    'achievement': BsGiftFill,
-    'general_announcement': BsChatDotsFill,
+  'activity_status': BsChatDotsFill,
+  'reward_status': BsCheckCircleFill,
+  'achievement': BsGiftFill,
+  'general_announcement': BsChatDotsFill,
 };
 
-// مجموعه آیکون‌های ادمین
 const adminIconMap = {
-    'new_activity_submission': BsFileEarmarkPlusFill,
-    'new_reward_request': BsGiftFill,
-    'admin_general': BsChatDotsFill,
+  'new_activity_submission': BsFileEarmarkPlusFill,
+  'new_reward_request': BsGiftFill,
+  'admin_general': BsChatDotsFill,
 };
 
-// کامپوننت حالا یک prop به نام userType می‌پذیرد
-const NotificationPanel = ({ isOpen, onClose, token, userType = 'student' }) => {
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const navigate = useNavigate();
+export default function NotificationPanel({ isOpen, onClose, token, userType = 'student' }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const navigate = useNavigate();
 
-    // بر اساس userType، مجموعه آیکون مناسب انتخاب می‌شود
-    const iconMap = userType === 'admin' ? adminIconMap : studentIconMap;
+  const iconMap = userType === 'admin' ? adminIconMap : studentIconMap;
 
-    const fetchNotificationsList = async () => {
-        if (!token) return;
-        setLoading(true);
-        setIsRefreshing(true);
-        setError(null);
+  const fetchNotificationsList = async () => {
+    if (!token) return;
+    setLoading(true);
+    setIsRefreshing(true);
+    setError(null);
 
-        try {
-            // اندپوینت بک‌اند خودش تشخیص می‌دهد چه اعلان‌هایی را برگرداند
-            const response = await fetchData('notifications?limit=10', {
-                headers: { authorization: `Bearer ${token}` }
-            });
-            if (response.success && Array.isArray(response.data)) {
-                setNotifications(response.data);
-            } else {
-                setError(response.message || 'خطا در دریافت اطلاعات.');
-            }
-        } catch (err) {
-            setError(err.message || 'خطای شبکه.');
-        } finally {
-            setLoading(false);
-            setIsRefreshing(false);
-        }
-    };
+    try {
+      const response = await fetchData('notifications?limit=10', {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (response.success && Array.isArray(response.data)) {
+        setNotifications(response.data);
+      } else {
+        setError(response.message || 'خطا در دریافت اطلاعات.');
+      }
+    } catch (err) {
+      setError(err.message || 'خطای شبکه.');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
-    useEffect(() => {
-        if (isOpen) {
-            fetchNotificationsList();
-        }
-    }, [isOpen, token]);
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotificationsList();
+    }
+  }, [isOpen]);
 
-    const handleMarkAsRead = async (id) => {
-        // Optimistic UI update
-        setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
-        try {
-            // بک‌اند برای خوانده‌شدن یک اعلان خاص
-            await fetchData(`notifications/mark-as-read/${id}`, {
-                method: 'PATCH',
-                headers: { authorization: `Bearer ${token}` },
-            });
-        } catch (err) {
-            console.error("Failed to mark notification as read", err);
-            // Rollback on error
-            setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: false } : n));
-        }
-    };
+  const handleMarkAsRead = async (id, relatedLink) => {
+    try {
+      await fetchData(`notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)));
+      if (relatedLink) {
+        navigate(relatedLink);
+        onClose();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    const handleNotificationClick = (notification) => {
-        if (!notification.isRead) {
-            handleMarkAsRead(notification._id);
-        }
-        if (notification.relatedLink) {
-            navigate(notification.relatedLink);
-            onClose(); // بستن پنل پس از کلیک
-        }
-    };
-    
-    const handleMarkAllAsRead = async () => {
-        setMarkingAllAsRead(true);
-        const originalNotifications = [...notifications];
-        // Optimistic UI update
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-        try {
-            const response = await fetchData('notifications/mark-all-as-read', {
-                method: 'PATCH',
-                headers: { authorization: `Bearer ${token}` }
-            });
-            if (!response.success) throw new Error(response.message || 'خطا در سرور');
-        } catch (err) {
-            console.error("Failed to mark all as read", err);
-            setNotifications(originalNotifications); // Rollback on error
-            alert('خطا در علامت‌گذاری اعلان‌ها.');
-        } finally {
-            setMarkingAllAsRead(false);
-        }
-    };
+  const handleMarkAllAsRead = async () => {
+    setMarkingAllAsRead(true);
+    try {
+      await fetchData('notifications/mark-all-read', {
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMarkingAllAsRead(false);
+    }
+  };
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const hasUnreadNotifications = notifications.some(n => !n.isRead);
-
-    return (
-        <div className="absolute top-16 right-4 sm:right-auto sm:left-4 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-5000 flex flex-col" dir="rtl">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={fetchNotificationsList} disabled={isRefreshing || loading} title="تازه‌سازی" className="text-gray-500 hover:text-gray-800 disabled:opacity-50">
-                        <IoRefresh className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    </button>
-                    <h3 className="text-lg font-semibold text-gray-800">اعلان ها</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                    {hasUnreadNotifications && (
-                        <button onClick={handleMarkAllAsRead} disabled={markingAllAsRead} className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 disabled:opacity-50">
-                            <IoCheckmarkDoneCircleOutline size={16} />
-                            <span>{markingAllAsRead ? 'صبر کنید...' : 'خوانده شدن همه'}</span>
-                        </button>
-                    )}
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <IoClose size={20} />
-                    </button>
-                </div>
-            </div>
-            <div className="relative flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 max-h-[288px]">
-                {loading && <p className="p-4 text-center text-gray-500">در حال بارگذاری...</p>}
-                {error && <p className="p-4 text-center text-red-600 bg-red-50">{error}</p>}
-                {!loading && notifications.length === 0 && <p className="p-4 text-center text-gray-500">هیچ اعلان جدیدی وجود ندارد.</p>}
-                {!loading && notifications.map((notification) => {
-                    const IconComponent = iconMap[notification.type] || BsChatDotsFill;
-                    return (
-                        <div key={notification._id} onClick={() => handleNotificationClick(notification)} className={`p-4 flex items-start gap-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/60' : 'opacity-80'}`}>
-                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${notification.iconBgColor || 'bg-gray-500'}`}>
-                                <IconComponent className="text-white text-xl" />
-                            </div>
-                            <div className="flex-grow">
-                                <h4 className="font-semibold text-sm text-gray-800">{notification.title}</h4>
-                                <p className="text-xs text-gray-600 mt-0.5">{notification.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+  return (
+    <div className="absolute left-0 mt-3 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#151C28] rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-[4px_4px_0_#202A5A] dark:shadow-[4px_4px_0_#59BBAF] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3.5 sm:p-4 bg-gray-50/80 dark:bg-[#1C2536] border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-2">
+          <h4 className="font-black text-sm text-[#202A5A] dark:text-white">اعلان‌ها</h4>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#59BBAF]/15 text-[#438C83] dark:text-[#59BBAF]">
+            {toPersianDigits(notifications.filter(n => !n.isRead).length)} جدید
+          </span>
         </div>
-    );
-};
+        <div className="flex items-center gap-1">
+          <button
+            onClick={fetchNotificationsList}
+            disabled={isRefreshing}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all cursor-pointer"
+            title="بروزرسانی"
+          >
+            <IoRefresh className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={handleMarkAllAsRead}
+            disabled={markingAllAsRead}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-[#59BBAF] dark:text-gray-400 dark:hover:text-[#59BBAF] hover:bg-gray-200 dark:hover:bg-gray-700 transition-all cursor-pointer"
+            title="خواندن همه"
+          >
+            <IoCheckmarkDoneCircleOutline className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-all cursor-pointer"
+            title="بستن"
+          >
+            <IoClose className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-export default NotificationPanel;
+      {/* List */}
+      <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+        {loading ? (
+          <div className="py-8 text-center text-xs text-gray-400">در حال دریافت اعلان‌ها...</div>
+        ) : error ? (
+          <div className="p-4 text-center text-xs text-rose-500">{error}</div>
+        ) : notifications.length === 0 ? (
+          <div className="py-8 text-center text-xs text-gray-400">اعلانی وجود ندارد.</div>
+        ) : (
+          notifications.map(item => {
+            const Icon = iconMap[item.type] || BsChatDotsFill;
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleMarkAsRead(item.id, item.relatedLink)}
+                className={`p-3.5 sm:p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-[#1C2536]/60 transition-all cursor-pointer ${
+                  !item.isRead ? 'bg-[#EEF8F7]/60 dark:bg-[#1F413D]/20' : ''
+                }`}
+              >
+                <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 text-primary">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <h5 className="text-xs font-bold text-[#202A5A] dark:text-white truncate">
+                      {item.title}
+                    </h5>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">
+                      {formatToJalali(item.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+                    {item.message}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
