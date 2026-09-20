@@ -89,7 +89,7 @@ export default function RewardsAdminPage() {
   const handleConfirmStatus = async (rewardId, newStatus) => {
     setSubmittingAction(true);
     try {
-      const res = await fetchData(`student-reward/status/${rewardId}`, {
+      const res = await fetchData(`student-reward/${rewardId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })

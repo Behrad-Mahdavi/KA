@@ -38,7 +38,7 @@ studentRewardRouter.route('/my-stats')      // این روت هم استاتیک
     .get(getMyRewardStats);
 studentRewardRouter.get('/my-list', getMyRewardsListPaginated);
 studentRewardRouter.get('/my-rewards', getMyRewardsListPaginated);
-
+studentRewardRouter.patch('/status/:id', isAdmin, changeStatusRe);
 
 // روت‌های مربوط به یک پاداش خاص (با پارامتر داینامیک id)
 studentRewardRouter.route('/:id')           // <<<< این روت باید در انتها (یا بعد از روت‌های استاتیک مشابه) بیاد
