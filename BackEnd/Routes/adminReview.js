@@ -8,7 +8,12 @@ const adminReviewRouter = express.Router();
 // اعمال میدل‌ورها برای تمام روت‌های این فایل
 
 adminReviewRouter.get('/student-activity-stats', getStudentActivityStatsForAdmin);
+adminReviewRouter.get('/stats', getStudentActivityStatsForAdmin);
+
 adminReviewRouter.get('/student-activities-list', getAllStudentActivitiesForReview);
+adminReviewRouter.get('/student-activities', getAllStudentActivitiesForReview);
+adminReviewRouter.get('/', getAllStudentActivitiesForReview);
+
 adminReviewRouter.patch('/student-activities/:studentActivityId/approve', approveStudentActivity);
 adminReviewRouter.patch('/student-activities/:studentActivityId/reject', rejectStudentActivity);
 

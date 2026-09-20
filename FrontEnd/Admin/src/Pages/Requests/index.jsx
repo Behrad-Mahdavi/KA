@@ -36,7 +36,7 @@ export default function Requests() {
   const fetchStats = async () => {
     if (!token) return;
     try {
-      const res = await fetchData('admin-review/stats', {
+      const res = await fetchData('admin-review/student-activity-stats', {
         headers: { authorization: `Bearer ${token}` }
       });
       if (res?.success && res.data) {
@@ -51,7 +51,7 @@ export default function Requests() {
     if (!token) return;
     setLoading(true);
     try {
-      let query = `admin-review/student-activities?page=${page}&limit=10`;
+      let query = `admin-review/student-activities-list?page=${page}&limit=10`;
       if (filterStatus !== 'all') query += `&status=${filterStatus}`;
       if (searchStudent.trim()) query += `&studentName=${encodeURIComponent(searchStudent.trim())}`;
 
