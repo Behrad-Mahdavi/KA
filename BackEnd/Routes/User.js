@@ -1,5 +1,5 @@
 import express from 'express';
-import { findStudentByDetails, getAllStudentsForSelection, getGradeRankingTable, getOverallRankingTable, getSameGradeRankingTable, getStudentActivitiesByCategory, getStudentActivitiesByParent, getStudentById, getStudentsByGradeAndClass, getTopStudentsByAllGrades, getUserSummaryStats } from '../Controllers/UserCn.js';
+import { findStudentByDetails, getAllStudentsForSelection, getGradeRankingTable, getMyProfile, getOverallRankingTable, getSameGradeRankingTable, getStudentActivitiesByCategory, getStudentActivitiesByParent, getStudentById, getStudentsByGradeAndClass, getTopStudentsByAllGrades, getUserSummaryStats } from '../Controllers/UserCn.js';
 import upload from '../Utils/uploadFile.js';
 import isLogin from '../Middlewares/isLogin.js';
 import isAdmin from '../Middlewares/isAdmin.js';
@@ -7,6 +7,8 @@ import isAdmin from '../Middlewares/isAdmin.js';
 const userRouter = express.Router();
 
 // In your route handler
+userRouter.get('/my-profile', isLogin, getMyProfile);
+userRouter.get('/me', isLogin, getMyProfile);
 userRouter.route("/summary-stats").get(getUserSummaryStats)
 userRouter.route("/students-selection").get(getAllStudentsForSelection);
 userRouter.get('/find-by-details', findStudentByDetails);

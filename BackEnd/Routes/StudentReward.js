@@ -36,7 +36,8 @@ studentRewardRouter.route('/all-for-admin') // <<<< این روت هم باید 
 
 studentRewardRouter.route('/my-stats')      // این روت هم استاتیک است و مشکلی نداره اگر قبل از /:id باشه
     .get(getMyRewardStats);
-studentRewardRouter.get('/my-list', getMyRewardsListPaginated); // <<< روت جدید ما
+studentRewardRouter.get('/my-list', getMyRewardsListPaginated);
+studentRewardRouter.get('/my-rewards', getMyRewardsListPaginated);
 
 
 // روت‌های مربوط به یک پاداش خاص (با پارامتر داینامیک id)

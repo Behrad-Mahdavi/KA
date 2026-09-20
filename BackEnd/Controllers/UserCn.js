@@ -2,6 +2,29 @@ import catchAsync from '../Utils/catchAsync.js';
 import prisma from '../Utils/prisma.js';
 import HandleERROR from '../Utils/handleError.js';
 
+export const getMyProfile = catchAsync(async (req, res, next) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: {
+      id: true,
+      fullName: true,
+      idCode: true,
+      role: true,
+      fieldOfStudy: true,
+      grade: true,
+      class: true,
+      score: true,
+      token: true,
+      rankInSchool: true,
+      rankInGrade: true,
+      rankInClass: true,
+      image: true
+    }
+  });
+  if (!user) return next(new HandleERROR('کاربر یافت نشد.', 404));
+  res.status(200).json({ success: true, data: user });
+});
+
 export const getUserSummaryStats = catchAsync(async (req, res, next) => {
   const stats = await prisma.user.aggregate({
     where: { role: 'student' },

@@ -38,15 +38,25 @@ export default function Rewards() {
 
     try {
       // 1. Fetch balance
-      const profileRes = await fetchData('users/my-profile', {
-        headers: { authorization: `Bearer ${token}` }
-      });
-      if (profileRes?.success && profileRes.data) {
-        setCurrentUserTokens(profileRes.data.token || 0);
+      try {
+        const profileRes = await fetchData('users/my-profile', {
+          headers: { authorization: `Bearer ${token}` }
+        });
+        if (profileRes?.success && profileRes.data) {
+          setCurrentUserTokens(profileRes.data.token || 0);
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          if (storedUser) {
+            storedUser.token = profileRes.data.token || 0;
+            storedUser.score = profileRes.data.score || 0;
+            localStorage.setItem('user', JSON.stringify(storedUser));
+          }
+        }
+      } catch (profileErr) {
+        console.warn('Profile fetch warning:', profileErr);
       }
 
       // 2. Fetch rewards list
-      let query = 'student-reward/my-rewards?limit=50';
+      let query = 'student-reward/my-list?limit=50';
       if (statusFilter !== 'all') {
         query += `&status=${statusFilter}`;
       }
@@ -55,8 +65,10 @@ export default function Rewards() {
         headers: { authorization: `Bearer ${token}` }
       });
 
-      if (res?.success && Array.isArray(res.data)) {
-        setRewardsList(res.data);
+      if (res?.success) {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.rewards || []);
+        setRewardsList(list);
+        setError('');
       } else {
         setError(res?.message || 'خطا در دریافت سوابق پاداش‌ها');
       }
